@@ -7,17 +7,17 @@
 1. Application starts with EGRUL-files destination directory
 1. Application read the directory and decide what zips are not loaded yet (new)
 1. Application for each new zip-file:
-1.1. Unzip it
-1.1. Retrieve XMLs
-1.1. For every XML:
-1.1.1. Split in СвЮЛ nodes
-1.1.1. For every СвЮЛ node:
-1.1.1.1. Store СвЮл node translated in JSON format in Cassandra database
-1.1.1.1. Update Elasticsearch database with new СвЮл data
+   1. Unzip it
+   1. Retrieve XMLs
+   1. For every XML:
+      1. Split in СвЮЛ nodes
+      1. For every СвЮЛ node:
+         1. Store СвЮл node translated in JSON format in Cassandra database
+         1. Update Elasticsearch database with new СвЮл data
 #### Data access
 1. Retrieve a company information
-1.1. for a concrete `ОГРН` with last `ДатаВып`
-1.1. for a concrete `ОГРН` for all `ДатаВып` sorted by `ДатаВып`
+   1. for a concrete `ОГРН` with last `ДатаВып`
+   1. for a concrete `ОГРН` for all `ДатаВып` sorted by `ДатаВып`
 
 ### Formats
 #### EGRUL xml format:
