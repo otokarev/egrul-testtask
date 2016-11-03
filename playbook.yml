@@ -1,0 +1,42 @@
+- hosts: cassandra-cluster
+  sudo: true
+  remote_user: root
+  vars:
+    cassandra_seeds: "{{ groups['cassandra-cluster'] | map('extract', hostvars, ['ansible_ssh_host']) | list }}"
+    cassandra_cluster_name: TestCluster
+    cassandra_listen_address: "{{ansible_ssh_host}}"
+  tasks:
+    - debug: var=cassandra_seeds
+    - name: install Datastax YUM repo
+      copy:
+        content: |
+          [datastax]
+          name = DataStax Repo for Apache Cassandra
+          baseurl = http://rpm.datastax.com/community
+          enabled = 1
+          gpgcheck = 0
+        dest: /etc/yum.repos.d/datastax.repo
+    - name: Yum update
+      shell: /usr/bin/yum update -y
+    - name: Install all require RPMs
+      yum: name={{item}} state=present
+      with_items:
+        - vim
+        - net-tools
+        - java-1.8.0-openjdk
+        - dsc20
+        - cassandra20
+
+    - name: Update C* config file
+      template:
+        src: cassandra.yaml.j2
+        dest: /etc/cassandra/conf/cassandra.yaml
+
+    - name: Enable C*
+      shell: /sbin/chkconfig cassandra on
+    - name: Stop C*
+      service: name=cassandra state=stopped
+    - name: Clean all C* data
+      shell: rm -rf /var/lib/cassandra/data/system/*
+    - name: Start C*
+      service: name=cassandra state=started

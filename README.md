@@ -38,3 +38,32 @@ Any suitable to store in Elasticsearch with automapping
 
 ### Elasticsearch
 * 1 node deployment
+
+## Test stand
+### Installing cluster nodes
+**Prerequisites**: 
+
+* `vagrant` installed
+* `ansible` installed (works at least with v2.2.0)
+
+
+**Notes**: these three nodes will have ips: 192.168.2.2-4, if you want change the ips, modify `Vagrantfile`
+
+Add following lines in `/etc/hosts`
+```
+192.168.2.2 cassandra2.localhost
+192.168.2.3 cassandra3.localhost
+192.168.2.4 cassandra4.localhost
+```
+
+To launch 3 CentOS server run:
+```
+vagrant up
+```
+from project root directory
+
+To install required Cassandra software run:
+```
+ansible-playbook -i hosts playbook.yml
+```
+
