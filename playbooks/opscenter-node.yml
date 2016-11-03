@@ -1,0 +1,28 @@
+- hosts: opscenter-node
+  sudo: true
+  remote_user: root
+  vars:
+  tasks:
+    - name: install Datastax YUM repo
+      copy:
+        content: |
+          [datastax]
+          name = DataStax Repo for Apache Cassandra
+          baseurl = http://rpm.datastax.com/community
+          enabled = 1
+          gpgcheck = 0
+        dest: /etc/yum.repos.d/datastax.repo
+    - name: Yum update
+      shell: /usr/bin/yum update -y
+    - name: Install all require RPMs
+      yum: name={{item}} state=present
+      with_items:
+        - vim
+        - net-tools
+        - java-1.8.0-openjdk
+        - opscenter
+
+    - name: Enable OpsCenter
+      shell: /sbin/chkconfig opscenterd on
+    - name: Start OpsCenter
+      service: name=opscenterd state=started

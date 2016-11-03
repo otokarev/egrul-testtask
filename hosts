@@ -1,8 +1,12 @@
 [cassandra-cluster]
 [cassandra-cluster:children]
 cassandra-node
+opscenter-node
 
 [cassandra-node]
 cassandra2.localhost ansible_ssh_host=192.168.2.2
 cassandra3.localhost ansible_ssh_host=192.168.2.3
 cassandra4.localhost ansible_ssh_host=192.168.2.4
+
+[opscenter-node]
+opscenter5.localhost ansible_ssh_host=192.168.2.5

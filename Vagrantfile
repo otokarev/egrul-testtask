@@ -13,6 +13,7 @@ Vagrant.configure(2) do |config|
     SHELL
   end
 
+  # Nodes for C*
   (2..4).each do |i|
     config.vm.define "master#{i}" do |c|
       c.vm.provider "virtualbox" do |v|
@@ -21,6 +22,18 @@ Vagrant.configure(2) do |config|
       end
       c.vm.network "private_network", ip: "192.168.2.#{i}"
       c.vm.hostname = "cassandra#{i}.localhost"
+    end
+  end
+
+  # Nodes for OpsCenter
+  (5..5).each do |i|
+    config.vm.define "master#{i}" do |c|
+      c.vm.provider "virtualbox" do |v|
+        v.cpus = 2
+        v.memory = 2000
+      end
+      c.vm.network "private_network", ip: "192.168.2.#{i}"
+      c.vm.hostname = "opscenter#{i}.localhost"
     end
   end
 

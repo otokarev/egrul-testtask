@@ -1,12 +1,13 @@
-- hosts: cassandra-cluster
+- hosts: cassandra-node
   sudo: true
   remote_user: root
   vars:
-    cassandra_seeds: "{{ groups['cassandra-cluster'] | map('extract', hostvars, ['ansible_ssh_host']) | list }}"
+    cassandra_seeds: "{{ groups['cassandra-node'] | map('extract', hostvars, ['ansible_ssh_host']) | list }}"
     cassandra_cluster_name: TestCluster
     cassandra_listen_address: "{{ansible_ssh_host}}"
+    cassandra_rpc_address: "0.0.0.0"
+    opscenter_ip: "{{ groups['opscenter-node'] | map('extract', hostvars, ['ansible_ssh_host']) | list | first }}"
   tasks:
-    - debug: var=cassandra_seeds
     - name: install Datastax YUM repo
       copy:
         content: |
@@ -26,6 +27,7 @@
         - java-1.8.0-openjdk
         - dsc20
         - cassandra20
+        - datastax-agent
 
     - name: Update C* config file
       template:
@@ -40,3 +42,14 @@
       shell: rm -rf /var/lib/cassandra/data/system/*
     - name: Start C*
       service: name=cassandra state=started
+
+    - name: Configure Datastax Agent
+      copy:
+        content: "stomp_interface: {{opscenter_ip}}"
+        dest: /var/lib/datastax-agent/conf/address.yaml
+    - name: Enable Datastax Agent
+      shell: /sbin/chkconfig datastax-agent on
+    - name: Stop Datastax Agent
+      service: name=datastax-agent state=stopped
+    - name: Start Datastax Agent
+      service: name=datastax-agent state=started
