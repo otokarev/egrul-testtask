@@ -45,7 +45,8 @@ Any suitable to store in Elasticsearch with automapping
 
 **Prerequisites**: 
 
-* `vagrant` installed (provider: `virtualbox`)
+* `virtualbox` installed
+* `vagrant` installed
 * `ansible` installed (works at least with v2.2.0)
 
 
