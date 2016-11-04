@@ -4,7 +4,7 @@
 
 ### User-stories
 #### Import data
-1. Application starts with archives files destination directory
+1. Application starts with ZIP-files destination directory
 1. Application read the directory and decide what zips are not loaded yet (new)
 1. Application for each new zip-file:
    1. Unzip it
@@ -20,10 +20,17 @@
    1. for a concrete `id` for all `modifiedAt` sorted by `modifiedAt`
 
 ### Formats
-#### EGRUL xml format:
+#### ZIP-files
+Filename format: `archive-<YYYY-MM-DD>.zip`
+
+Every ZIP-file contains several XML-files
+#### XML-files format:
+Filename format: `file-<YYYY-MM-DD>.XML`
+
+Contents format:
 ```
-<batch>
-    <item><id>qewr</id><modifiedAt>2016-11-02T12:00:00</modifiedAt><payload>...</payload></item>
+<batch id=N >
+    <item id=N createdAt=DATETIME modifiedAt=DATETIME ><payload>...</payload></item>
     ...
 </batch>
 ```
@@ -77,4 +84,37 @@ ansible-playbook -i hosts playbooks/opscenter-node.yml
 ```
 
 Go to `opscenter5.localhost:8888` in browser and add an existing cluster, just mention any IP of it, e.g. `192.168.2.2`
+
+## Data modeling
+### Batch
+
+* id
+* name
+* at
+* completedAt
+
+### File
+
+* id
+* name
+* batchId
+* at
+* completedAt
+
+### Item
+
+* id
+* itemId
+* creationDate
+* payload
+
+### ItemByItemId
+
+* itemId
+* id
+* creationDate
+* payload
+
+## Acknowledgements
+* `model` sub-module implementation is based on [https://github.com/thiagoandrade6/cassandra-phantom](https://github.com/thiagoandrade6/cassandra-phantom)
 
