@@ -1,12 +1,12 @@
 package xap.service
 
 import com.websudos.phantom.dsl._
-import xap.database.ProductionDatabase
+import xap.database.{ProductionDatabase, ProductionDatabaseProvider}
 import xap.entity.Item
 
 import scala.concurrent.Future
 
-trait ItemsService extends ProductionDatabase {
+trait ItemsService extends ProductionDatabaseProvider {
 
   /**
     * Find items by Id
