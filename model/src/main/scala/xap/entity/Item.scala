@@ -10,3 +10,9 @@ case class Item(
   creationDate: DateTime,
   payload: String
 )
+
+case class ItemByItemId(
+                 id: UUID,
+                 itemId: Long,
+                 creationDate: DateTime
+               )

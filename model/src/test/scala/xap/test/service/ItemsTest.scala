@@ -1,22 +1,32 @@
 package xap.test.service
 
 import com.datastax.driver.core.utils.UUIDs
-import com.websudos.phantom.dsl.ResultSet
 import com.websudos.util.testing._
 import org.joda.time.DateTime
+import org.scalatest.time.{Millis, Seconds, Span}
 import xap.connector.Connector
 import xap.database.EmbeddedDatabase
 import xap.entity.Item
+import xap.service.ItemsService
 import xap.test.utils.CassandraSpec
 
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 
 class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testConnector.Connector {
 
+  object ItemsService extends ItemsService with EmbeddedDatabase
+
+  implicit val defaultPatience =
+    PatienceConfig(timeout = Span(1, Seconds), interval = Span(20, Millis))
+
   override def beforeAll(): Unit = {
     Await.result(database.autocreate().future(), 5.seconds)
+  }
+
+  override def afterAll(): Unit = {
+    Await.result(database.autotruncate().future(), 5.seconds)
   }
 
   implicit object ItemGenerator extends Sample[Item] {
@@ -32,12 +42,12 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
 
   "A Item" should "be inserted into cassandra" in {
     val sample = gen[Item]
-    val future = this.store(sample)
+    val future = ItemsService.saveOrUpdate(sample)
 
     whenReady(future) { result =>
       result isExhausted() shouldBe true
       result wasApplied() shouldBe true
-      this.drop(sample)
+      ItemsService.delete(sample)
     }
   }
 
@@ -45,14 +55,14 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
     val sample = gen[Item]
 
     val chain = for {
-      store <- this.store(sample)
-      get <- database.itemsModel.getById(sample.id)
-      delete <- this.drop(sample)
+      store <- ItemsService.saveOrUpdate(sample)
+      get <- ItemsService.getItemById(sample.id)
+      delete <- ItemsService.delete(sample)
     } yield get
 
     whenReady(chain) { res =>
       res shouldBe defined
-      this.drop(sample)
+      ItemsService.delete(sample)
     }
   }
 
@@ -62,19 +72,19 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
     val sample3 = gen[Item]
 
     val future = for {
-      f1 <- this.store(sample.copy(payload = "Toxicity"))
-      f2 <- this.store(sample2.copy(payload = "Aerials"))
-      f3 <- this.store(sample3.copy(payload = "Chop Suey"))
+      f1 <- ItemsService.saveOrUpdate(sample.copy(payload = "Toxicity"))
+      f2 <- ItemsService.saveOrUpdate(sample2.copy(payload = "Aerials"))
+      f3 <- ItemsService.saveOrUpdate(sample3.copy(payload = "Chop Suey"))
     } yield (f1, f2, f3)
 
     whenReady(future) { insert =>
-      val itemsByItemId = database.itemsByItemIdsModel.getByItemId(12345)
+      val itemsByItemId = ItemsService.getItemsByItemId(12345)
       whenReady(itemsByItemId) { searchResult =>
         searchResult shouldBe a [List[_]]
         searchResult should have length 3
-        this.drop(sample)
-        this.drop(sample2)
-        this.drop(sample3)
+        ItemsService.delete(sample)
+        ItemsService.delete(sample2)
+        ItemsService.delete(sample3)
       }
     }
   }
@@ -84,10 +94,10 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
     val updatedPayload = gen[String]
 
     val chain = for {
-      store <- this.store(sample)
-      unmodified <- database.itemsModel.getById(sample.id)
-      store <- this.store(sample.copy(payload = updatedPayload))
-      modified <- database.itemsModel.getById(sample.id)
+      store <- ItemsService.saveOrUpdate(sample)
+      unmodified <- ItemsService.getItemById(sample.id)
+      store <- ItemsService.saveOrUpdate(sample.copy(payload = updatedPayload))
+      modified <- ItemsService.getItemById(sample.id)
     } yield (unmodified, modified)
 
     whenReady(chain) {
@@ -98,33 +108,8 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
         modified shouldBe defined
         modified.value.payload shouldEqual updatedPayload
 
-        this.drop(modified.get)
+        ItemsService.delete(modified.get)
     }
   }
 
-  /**
-    * Utility method to store into both tables
-    *
-    * @param item the item to be inserted
-    * @return a [[Future]] of [[ResultSet]]
-    */
-  private def store(item: Item): Future[ResultSet] = {
-    for {
-      byId <- database.itemsModel.store(item)
-      byItemId <- database.itemsByItemIdsModel.store(item)
-    } yield byItemId
-  }
-
-  /**
-    * Utility method to delete into both tables
-    *
-    * @param item the item to be deleted
-    * @return a [[Future]] of [[ResultSet]]
-    */
-  private def drop(item: Item) = {
-    for {
-      byID <- database.itemsModel.deleteById(item.id)
-      byItemId <- database.itemsByItemIdsModel.deleteByItemIdAndId(item.itemId, item.id)
-    } yield byItemId
-  }
 }

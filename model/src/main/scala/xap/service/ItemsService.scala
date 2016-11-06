@@ -24,7 +24,10 @@ trait ItemsService extends ProductionDatabaseProvider {
    * @return
    */
   def getItemsByItemId(itemId: Long): Future[List[Item]] = {
-    database.itemsByItemIdsModel.getByItemId(itemId)
+    for {
+      l1 <- database.itemsByItemIdsModel.getByItemId(itemId)
+      l2 <- Future.traverse(l1)(a => database.itemsModel.getByIdList(a.id))
+    } yield l2.flatten
   }
 
   /**

@@ -3,7 +3,7 @@ package xap.model
 import java.util.UUID
 
 import com.websudos.phantom.dsl._
-import xap.entity.Item
+import xap.entity.{Item, ItemByItemId}
 
 import scala.concurrent.Future
 
@@ -34,6 +34,13 @@ abstract class ConcreteItemsModel extends ItemsModel with RootConnector {
       .one()
   }
 
+  def getByIdList(id: UUID): Future[List[Item]] = {
+    select
+      .where(_.id eqs id)
+      .consistencyLevel_=(ConsistencyLevel.ONE)
+      .fetch()
+  }
+
   def store(item: Item): Future[ResultSet] = {
     insert
       .value(_.id, item.id)
@@ -55,16 +62,15 @@ abstract class ConcreteItemsModel extends ItemsModel with RootConnector {
 /**
   * Create the Cassandra representation of the Items by ItemId table
   */
-class ItemsByItemIdModel extends CassandraTable[ConcreteItemsByItemIds, Item] {
+class ItemsByItemIdModel extends CassandraTable[ConcreteItemsByItemIds, ItemByItemId] {
 
   override def tableName: String = "items_by_item_id"
 
   object itemId extends LongColumn(this) with PartitionKey[Long]
   object id extends TimeUUIDColumn(this) with ClusteringOrder[UUID]
   object creationDate extends DateTimeColumn(this)
-  object payload extends StringColumn(this)
 
-  override def fromRow(r: Row): Item = Item(id(r), itemId(r), creationDate(r), payload(r))
+  override def fromRow(r: Row) = ItemByItemId(id(r), itemId(r), creationDate(r))
 }
 
 /**
@@ -72,19 +78,18 @@ class ItemsByItemIdModel extends CassandraTable[ConcreteItemsByItemIds, Item] {
   */
 abstract class ConcreteItemsByItemIds extends ItemsByItemIdModel with RootConnector {
 
-  def getByItemId(itemId: Long): Future[List[Item]] = {
+  def getByItemId(itemId: Long): Future[List[ItemByItemId]] = {
     select
       .where(_.itemId eqs itemId)
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .fetch()
   }
 
-  def store(item: Item): Future[ResultSet] = {
+  def store(item: ItemByItemId): Future[ResultSet] = {
     insert
       .value(_.id, item.id)
       .value(_.itemId, item.itemId)
       .value(_.creationDate, item.creationDate)
-      .value(_.payload, item.payload)
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .future()
   }

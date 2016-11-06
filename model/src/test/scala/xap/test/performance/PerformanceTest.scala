@@ -15,6 +15,7 @@ import xap.test.utils.CassandraSpec
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.util.Random
 
 class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector.testConnector.Connector {
 
@@ -26,6 +27,10 @@ class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector
 
   override def beforeAll(): Unit = {
     Await.result(database.autocreate().future(), 5.seconds)
+  }
+
+  override def afterAll(): Unit = {
+    Await.result(database.autotruncate().future(), 5.seconds)
   }
 
   implicit object ItemGenerator extends Sample[Item] {
@@ -42,14 +47,14 @@ class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector
   val maxId = 100000
   val timeout = 10 second
 
-  val title = s"store $maxId records in $timeout"
-  it should title in {
+  val storeTitle = s"store $maxId records in $timeout"
+  it should storeTitle in {
 
     val f = Source.fromIterator(() => Iterator.range(1, maxId))
       .via(sharedKillSwitch.flow)
       .map(i =>
         gen[Item].copy(itemId=i)
-      ).mapAsync(1000000) {i =>
+      ).mapAsync(1000) {i =>
         val f = ItemsService.saveOrUpdate(i)
 
         f.onFailure({case e => sharedKillSwitch.abort(e)})
@@ -59,5 +64,19 @@ class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector
     Await.result(f, timeout)
   }
 
-}
+  val readTimeout = 15 second
 
+  val readTitle = s"random read $maxId records in $readTimeout"
+  it should readTitle in {
+    val rnd = new Random()
+    val f = Source.fromIterator(() => Iterator.range(1, maxId))
+      .via(sharedKillSwitch.flow)
+      .mapAsync(1000) {i =>
+        val f = ItemsService.getItemsByItemId(rnd.nextInt(maxId))
+        f.onFailure({case e => sharedKillSwitch.abort(e)})
+        f
+      } runWith Sink.ignore
+
+    Await.result(f, readTimeout)
+  }
+}
