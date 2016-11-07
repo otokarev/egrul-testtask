@@ -15,8 +15,8 @@ class ItemsModel extends CassandraTable[ConcreteItemsModel, Item] {
   override def tableName: String = "items"
 
   object id extends TimeUUIDColumn(this) with PartitionKey[UUID]
-  object itemId extends LongColumn(this)
-  object creationDate extends DateTimeColumn(this)
+  object itemId extends LongColumn(this) with ClusteringOrder[Long] with Descending
+  object creationDate extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
   object payload extends StringColumn(this)
 
   override def fromRow(r: Row): Item = Item(id(r), itemId(r), creationDate(r), payload(r))
@@ -67,8 +67,8 @@ class ItemsByItemIdModel extends CassandraTable[ConcreteItemsByItemIds, ItemByIt
   override def tableName: String = "items_by_item_id"
 
   object itemId extends LongColumn(this) with PartitionKey[Long]
-  object id extends TimeUUIDColumn(this) with ClusteringOrder[UUID]
-  object creationDate extends DateTimeColumn(this)
+  object id extends TimeUUIDColumn(this) with ClusteringOrder[UUID] with Descending
+  object creationDate extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
 
   override def fromRow(r: Row) = ItemByItemId(id(r), itemId(r), creationDate(r))
 }
