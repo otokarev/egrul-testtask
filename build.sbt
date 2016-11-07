@@ -25,4 +25,5 @@ lazy val model = (project in file("model"))
     Defaults.coreDefaultSettings ++ commonSettings ++ PhantomSbtPlugin.projectSettings
   )
 
+
 fork in run := true

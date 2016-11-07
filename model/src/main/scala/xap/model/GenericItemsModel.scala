@@ -16,10 +16,11 @@ class ItemsModel extends CassandraTable[ConcreteItemsModel, Item] {
 
   object id extends TimeUUIDColumn(this) with PartitionKey[UUID]
   object itemId extends LongColumn(this) with ClusteringOrder[Long] with Descending
-  object creationDate extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
+  object createdAt extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
+  object modifiedAt extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
   object payload extends StringColumn(this)
 
-  override def fromRow(r: Row): Item = Item(id(r), itemId(r), creationDate(r), payload(r))
+  override def fromRow(r: Row): Item = Item(id(r), itemId(r), createdAt(r), modifiedAt(r), payload(r))
 }
 
 /**
@@ -45,7 +46,8 @@ abstract class ConcreteItemsModel extends ItemsModel with RootConnector {
     insert
       .value(_.id, item.id)
       .value(_.itemId, item.itemId)
-      .value(_.creationDate, item.creationDate)
+      .value(_.createdAt, item.createdAt)
+      .value(_.modifiedAt, item.modifiedAt)
       .value(_.payload, item.payload)
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .future()
@@ -68,9 +70,9 @@ class ItemsByItemIdModel extends CassandraTable[ConcreteItemsByItemIds, ItemByIt
 
   object itemId extends LongColumn(this) with PartitionKey[Long]
   object id extends TimeUUIDColumn(this) with ClusteringOrder[UUID] with Descending
-  object creationDate extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
+  object createdAt extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
 
-  override def fromRow(r: Row) = ItemByItemId(id(r), itemId(r), creationDate(r))
+  override def fromRow(r: Row) = ItemByItemId(id(r), itemId(r), createdAt(r))
 }
 
 /**
@@ -89,7 +91,7 @@ abstract class ConcreteItemsByItemIds extends ItemsByItemIdModel with RootConnec
     insert
       .value(_.id, item.id)
       .value(_.itemId, item.itemId)
-      .value(_.creationDate, item.creationDate)
+      .value(_.createdAt, item.createdAt)
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .future()
   }

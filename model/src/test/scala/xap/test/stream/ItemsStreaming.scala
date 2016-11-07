@@ -23,9 +23,9 @@ object ItemsStreaming extends ProductionDatabase with Connector.connector.Connec
     val truncate = database.autotruncate().future()
 
     val insert = Future.sequence(List(
-      ItemsService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], gen[DateTime], gen[String])),
-      ItemsService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], gen[DateTime], gen[String])),
-      ItemsService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], gen[DateTime], gen[String]))
+      ItemsService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], gen[DateTime], gen[DateTime], gen[String])),
+      ItemsService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], gen[DateTime], gen[DateTime], gen[String])),
+      ItemsService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], gen[DateTime], gen[DateTime], gen[String]))
     ))
 
     val f = for {
@@ -40,7 +40,7 @@ object ItemsStreaming extends ProductionDatabase with Connector.connector.Connec
 
     Source
       .fromPublisher(database.itemsModel.publisher())
-      .via(Flow[Item].map(item => s"Id: ${item.id} - ItemId: ${item.itemId} - CreationDate: ${item.creationDate}"))
+      .via(Flow[Item].map(item => s"Id: ${item.id} - ItemId: ${item.itemId} - CreationDate: ${item.modifiedAt}"))
       .to(Sink.foreach(println))
       .run()
   }

@@ -10,7 +10,9 @@ object Dependencies {
   lazy val model = common ++ db ++ tests
 
   val common = Seq(
-    "com.typesafe" % "config" % "1.3.1"
+    "com.typesafe" % "config" % "1.3.1",
+    "joda-time" % "joda-time" % "2.9.5",
+    "com.github.nscala-time" %% "nscala-time" % "2.14.0"
   )
 
   val db = Seq(

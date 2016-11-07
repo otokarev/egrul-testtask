@@ -15,6 +15,7 @@ import xap.test.utils.CassandraSpec
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.Random
 
 class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector.testConnector.Connector {
@@ -38,6 +39,7 @@ class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector
       Item(
         UUIDs.timeBased(),
         gen[Long],
+        gen[DateTime],
         gen[DateTime],
         gen[String]
       )

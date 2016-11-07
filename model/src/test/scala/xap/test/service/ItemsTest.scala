@@ -35,6 +35,7 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
         UUIDs.timeBased(),
         12345,
         gen[DateTime],
+        gen[DateTime],
         gen[String]
       )
     }
