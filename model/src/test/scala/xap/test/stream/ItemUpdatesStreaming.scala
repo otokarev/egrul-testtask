@@ -9,23 +9,23 @@ import com.websudos.util.testing._
 import org.joda.time.DateTime
 import xap.connector.Connector
 import xap.database.ProductionDatabase
-import xap.entity.Item
-import xap.service.ItemService
+import xap.entity.ItemUpdate
+import xap.service.ItemUpdateService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-object ItemsStreaming extends ProductionDatabase with Connector.connector.Connector {
+object ItemUpdatesStreaming extends ProductionDatabase with Connector.connector.Connector {
 
   def main(args: Array[String]) {
 
     val truncate = database.autotruncate().future()
 
     val insert = Future.sequence(List(
-      ItemService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String])),
-      ItemService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String])),
-      ItemService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String]))
+      ItemUpdateService.saveOrUpdate(ItemUpdate(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String])),
+      ItemUpdateService.saveOrUpdate(ItemUpdate(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String])),
+      ItemUpdateService.saveOrUpdate(ItemUpdate(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String]))
     ))
 
     val f = for {
@@ -39,8 +39,8 @@ object ItemsStreaming extends ProductionDatabase with Connector.connector.Connec
     implicit val materializer = ActorMaterializer()
 
     Source
-      .fromPublisher(database.itemsModel.publisher())
-      .via(Flow[Item].map(item => s"Id: ${item.id} - ItemId: ${item.itemId} - CreationDate: ${item.modifiedAt}"))
+      .fromPublisher(database.itemUpdatesModel.publisher())
+      .via(Flow[ItemUpdate].map(itemUpdate => s"Id: ${itemUpdate.id} - ItemId: ${itemUpdate.itemId} - CreationDate: ${itemUpdate.modifiedAt}"))
       .to(Sink.foreach(println))
       .run()
   }

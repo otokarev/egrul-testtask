@@ -2,48 +2,48 @@ package xap.service
 
 import com.websudos.phantom.dsl._
 import xap.database.{DatabaseProvider, Embedded3rdPartyDatabase, EmbeddedDatabase, ProductionDatabase}
-import xap.entity.BatchWithItems
+import xap.entity.BatchWithItemUpdates
 
 import scala.concurrent.Future
 
-trait BatchWithItemsService extends DatabaseProvider {
+trait BatchWithItemUpdatesService extends DatabaseProvider {
 
   /**
     * Find batch by Id
-    * @param id Item's ID that is unique in our database
+    * @param id ItemUpdate's ID that is unique in our database
     * @return
     */
-  def getBatchById(id: UUID): Future[Option[BatchWithItems]] = {
+  def getBatchById(id: UUID): Future[Option[BatchWithItemUpdates]] = {
     val batchF = database.batchesModel.getById(id)
-    val batchedItemsF = database.itemsByBatchIdsModel.getByBatchId(id)
+    val batchedItemUpdatesF = database.itemUpdatesByBatchIdsModel.getByBatchId(id)
 
     val f = for {
-      batchedItems <- batchedItemsF
-      items <- Future.traverse(batchedItems)(a => database.itemsModel.getByIdList(a.id))
+      batchedItemUpdates <- batchedItemUpdatesF
+      itemUpdates <- Future.traverse(batchedItemUpdates)(a => database.itemUpdatesModel.getByIdList(a.id))
       batch <- batchF
-    } yield (items.flatten, batch)
+    } yield (itemUpdates.flatten, batch)
 
     f map {
-      case Tuple2(items, Some(batch)) => Option(BatchWithItems(batch.id, batch.createdAt, items))
+      case Tuple2(itemUpdates, Some(batch)) => Option(BatchWithItemUpdates(batch.id, batch.createdAt, itemUpdates))
       case _ => None
     }
   }
 
   /**
-    * Save an item in both tables
+    * Save an itemUpdate in both tables
     *
-    * @param batchWithItems BatchWithItems
+    * @param batchWithItemUpdates BatchWithItemUpdates
     * @return
     */
-  def saveOrUpdate(batchWithItems: BatchWithItems): Future[ResultSet] = {
-    val itemsF = Future.sequence(batchWithItems.items.map {i =>
-      ItemService.saveOrUpdate(i.copy(batchId = batchWithItems.id))
+  def saveOrUpdate(batchWithItemUpdates: BatchWithItemUpdates): Future[ResultSet] = {
+    val itemUpdatesF = Future.sequence(batchWithItemUpdates.itemUpdates.map {i =>
+      ItemUpdateService.saveOrUpdate(i.copy(batchId = batchWithItemUpdates.id))
     })
 
-    val batchF = BatchService.saveOrUpdate(batchWithItems)
+    val batchF = BatchService.saveOrUpdate(batchWithItemUpdates)
 
     for {
-      items <- itemsF
+      itemUpdates <- itemUpdatesF
       batch <- batchF
     } yield batch
   }
@@ -53,7 +53,7 @@ trait BatchWithItemsService extends DatabaseProvider {
 /**
   * Let available a singleton instance of this service class, to prevent unnecessary instances
   */
-object BatchWithItemsService extends BatchService with ProductionDatabase
-object TestBatchWithItemsService extends BatchService with EmbeddedDatabase
-object Test3rdPartyBatchWithItemsService extends BatchService with Embedded3rdPartyDatabase
+object BatchWithItemUpdatesService extends BatchService with ProductionDatabase
+object TestBatchWithItemUpdatesService extends BatchService with EmbeddedDatabase
+object Test3rdPartyBatchWithItemUpdatesService extends BatchService with Embedded3rdPartyDatabase
 

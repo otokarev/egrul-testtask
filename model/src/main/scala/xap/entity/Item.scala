@@ -4,7 +4,7 @@ import java.util.UUID
 
 import com.websudos.phantom.dsl.DateTime
 
-case class Item(
+case class ItemUpdate(
                  id: UUID,
                  itemId: Long,
                  batchId: UUID,
@@ -13,12 +13,12 @@ case class Item(
                  payload: String
 )
 
-case class ItemByItemId(
+case class ItemUpdateByItemId(
                          id: UUID,
                          itemId: Long,
                          createdAt: DateTime
                )
-case class ItemByBatchId(
+case class ItemUpdateByBatchId(
                          id: UUID,
                          batchId: UUID
                        )

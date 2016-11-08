@@ -2,14 +2,14 @@ package xap.database
 
 import com.websudos.phantom.dsl._
 import xap.connector.Connector._
-import xap.model.{ConcreteBatchesModel, ConcreteItemsByBatchIds, ConcreteItemsByItemIds, ConcreteItemsModel}
+import xap.model.{ConcreteBatchesModel, ConcreteItemUpdatesByBatchIds, ConcreteItemUpdatesByItemIds, ConcreteItemUpdatesModel}
 
 
 class ModelsDatabase(override val connector: KeySpaceDef) extends Database[ModelsDatabase](connector) {
-  object itemsModel extends ConcreteItemsModel with connector.Connector
+  object itemUpdatesModel extends ConcreteItemUpdatesModel with connector.Connector
   object batchesModel extends ConcreteBatchesModel with connector.Connector
-  object itemsByItemIdsModel extends ConcreteItemsByItemIds with connector.Connector
-  object itemsByBatchIdsModel extends ConcreteItemsByBatchIds with connector.Connector
+  object itemUpdatesByItemIdsModel extends ConcreteItemUpdatesByItemIds with connector.Connector
+  object itemUpdatesByBatchIdsModel extends ConcreteItemUpdatesByBatchIds with connector.Connector
 }
 
 object ProductionDb extends ModelsDatabase(connector)

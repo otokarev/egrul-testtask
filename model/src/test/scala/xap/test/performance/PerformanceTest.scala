@@ -8,8 +8,8 @@ import com.websudos.util.testing._
 import org.joda.time.DateTime
 import xap.connector.Connector
 import xap.database.EmbeddedDatabase
-import xap.entity.Item
-import xap.service.ItemService
+import xap.entity.ItemUpdate
+import xap.service.ItemUpdateService
 import xap.test.utils.CassandraSpec
 
 import scala.concurrent.Await
@@ -20,7 +20,7 @@ import scala.util.Random
 
 class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector.testConnector.Connector {
 
-  object ItemService extends ItemService with EmbeddedDatabase
+  object ItemUpdateService extends ItemUpdateService with EmbeddedDatabase
 
   implicit val system = ActorSystem("QuickStart")
   implicit val materializer = ActorMaterializer()
@@ -34,9 +34,9 @@ class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector
     Await.result(database.autotruncate().future(), 5.seconds)
   }
 
-  implicit object ItemGenerator extends Sample[Item] {
-    override def sample: Item = {
-      Item(
+  implicit object ItemUpdateGenerator extends Sample[ItemUpdate] {
+    override def sample: ItemUpdate = {
+      ItemUpdate(
         UUIDs.timeBased(),
         gen[Long],
         UUIDs.timeBased(),
@@ -48,7 +48,7 @@ class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector
   }
 
   val maxId = 100000
-  val timeout = 15 second
+  val timeout = 20 second
 
   val storeTitle = s"store $maxId records in $timeout"
   it should storeTitle in {
@@ -56,9 +56,9 @@ class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector
     val f = Source.fromIterator(() => Iterator.range(1, maxId))
       .via(sharedKillSwitch.flow)
       .map(i =>
-        gen[Item].copy(itemId=i)
+        gen[ItemUpdate].copy(itemId=i)
       ).mapAsync(1000) {i =>
-        val f = ItemService.saveOrUpdate(i)
+        val f = ItemUpdateService.saveOrUpdate(i)
 
         f.onFailure({case e => sharedKillSwitch.abort(e)})
         f
@@ -75,7 +75,7 @@ class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector
     val f = Source.fromIterator(() => Iterator.range(1, maxId))
       .via(sharedKillSwitch.flow)
       .mapAsync(1000) {i =>
-        val f = ItemService.getItemsByItemId(rnd.nextInt(maxId))
+        val f = ItemUpdateService.getItemUpdatesByItemId(rnd.nextInt(maxId))
         f.onFailure({case e => sharedKillSwitch.abort(e)})
         f
       } runWith Sink.ignore

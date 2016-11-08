@@ -10,7 +10,7 @@ trait BatchService extends DatabaseProvider {
 
   /**
     * Find batch by Id
-    * @param id Item's ID that is unique in our database
+    * @param id ItemUpdate's ID that is unique in our database
     * @return
     */
   def getBatchById(id: UUID): Future[Option[Batch]] = {
@@ -18,7 +18,7 @@ trait BatchService extends DatabaseProvider {
   }
 
   /**
-   * Save an item in both tables
+   * Save an itemUpdate in both tables
    *
    * @param batch Batch
    * @return

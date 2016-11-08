@@ -8,9 +8,9 @@ case class Batch(
                  id: UUID,
                  createdAt: DateTime
                )
-case class BatchWithItems(
+case class BatchWithItemUpdates(
                   id: UUID,
                   createdAt: DateTime,
-                  items: List[Item]
+                  itemUpdates: List[ItemUpdate]
                 )
 

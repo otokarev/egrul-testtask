@@ -3,16 +3,16 @@ package xap.model
 import java.util.UUID
 
 import com.websudos.phantom.dsl._
-import xap.entity.{Item, ItemByBatchId, ItemByItemId}
+import xap.entity.{ItemUpdate, ItemUpdateByBatchId, ItemUpdateByItemId}
 
 import scala.concurrent.Future
 
 /**
-  * Create the Cassandra representation of the Items table
+  * Create the Cassandra representation of the ItemUpdates table
   */
-class ItemsModel extends CassandraTable[ConcreteItemsModel, Item] {
+class ItemUpdatesModel extends CassandraTable[ConcreteItemUpdatesModel, ItemUpdate] {
 
-  override def tableName: String = "items"
+  override def tableName: String = "itemUpdates"
 
   object id extends TimeUUIDColumn(this) with PartitionKey[UUID]
   object itemId extends LongColumn(this)
@@ -21,36 +21,36 @@ class ItemsModel extends CassandraTable[ConcreteItemsModel, Item] {
   object modifiedAt extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
   object payload extends StringColumn(this)
 
-  override def fromRow(r: Row): Item = Item(id(r), itemId(r), batchId(r), createdAt(r), modifiedAt(r), payload(r))
+  override def fromRow(r: Row): ItemUpdate = ItemUpdate(id(r), itemId(r), batchId(r), createdAt(r), modifiedAt(r), payload(r))
 }
 
 /**
   * Define the available methods for this model
   */
-abstract class ConcreteItemsModel extends ItemsModel with RootConnector {
+abstract class ConcreteItemUpdatesModel extends ItemUpdatesModel with RootConnector {
 
-  def getById(id: UUID): Future[Option[Item]] = {
+  def getById(id: UUID): Future[Option[ItemUpdate]] = {
     select
       .where(_.id eqs id)
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .one()
   }
 
-  def getByIdList(id: UUID): Future[List[Item]] = {
+  def getByIdList(id: UUID): Future[List[ItemUpdate]] = {
     select
       .where(_.id eqs id)
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .fetch()
   }
 
-  def store(item: Item): Future[ResultSet] = {
+  def store(itemUpdate: ItemUpdate): Future[ResultSet] = {
     insert
-      .value(_.id, item.id)
-      .value(_.itemId, item.itemId)
-      .value(_.batchId, item.batchId)
-      .value(_.createdAt, item.createdAt)
-      .value(_.modifiedAt, item.modifiedAt)
-      .value(_.payload, item.payload)
+      .value(_.id, itemUpdate.id)
+      .value(_.itemId, itemUpdate.itemId)
+      .value(_.batchId, itemUpdate.batchId)
+      .value(_.createdAt, itemUpdate.createdAt)
+      .value(_.modifiedAt, itemUpdate.modifiedAt)
+      .value(_.payload, itemUpdate.payload)
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .future()
   }
@@ -64,36 +64,36 @@ abstract class ConcreteItemsModel extends ItemsModel with RootConnector {
 }
 
 /**
-  * Create the Cassandra representation of the Items by ItemId table
+  * Create the Cassandra representation of the ItemUpdates by ItemId table
   */
-class ItemsByItemIdModel extends CassandraTable[ConcreteItemsByItemIds, ItemByItemId] {
+class ItemUpdatesByItemIdModel extends CassandraTable[ConcreteItemUpdatesByItemIds, ItemUpdateByItemId] {
 
-  override def tableName: String = "items_by_item_id"
+  override def tableName: String = "itemUpdates_by_item_id"
 
   object itemId extends LongColumn(this) with PartitionKey[Long]
   object id extends TimeUUIDColumn(this) with ClusteringOrder[UUID] with Descending
   object createdAt extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
 
-  override def fromRow(r: Row) = ItemByItemId(id(r), itemId(r), createdAt(r))
+  override def fromRow(r: Row) = ItemUpdateByItemId(id(r), itemId(r), createdAt(r))
 }
 
 /**
   * Define the available methods for this model
   */
-abstract class ConcreteItemsByItemIds extends ItemsByItemIdModel with RootConnector {
+abstract class ConcreteItemUpdatesByItemIds extends ItemUpdatesByItemIdModel with RootConnector {
 
-  def getByItemId(itemId: Long): Future[List[ItemByItemId]] = {
+  def getByItemId(itemId: Long): Future[List[ItemUpdateByItemId]] = {
     select
       .where(_.itemId eqs itemId)
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .fetch()
   }
 
-  def store(item: ItemByItemId): Future[ResultSet] = {
+  def store(itemUpdate: ItemUpdateByItemId): Future[ResultSet] = {
     insert
-      .value(_.id, item.id)
-      .value(_.itemId, item.itemId)
-      .value(_.createdAt, item.createdAt)
+      .value(_.id, itemUpdate.id)
+      .value(_.itemId, itemUpdate.itemId)
+      .value(_.createdAt, itemUpdate.createdAt)
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .future()
   }
@@ -108,34 +108,34 @@ abstract class ConcreteItemsByItemIds extends ItemsByItemIdModel with RootConnec
 }
 
 /**
-  * Create the Cassandra representation of the Items by BatchId table
+  * Create the Cassandra representation of the ItemUpdates by BatchId table
   */
-class ItemsByBatchIdModel extends CassandraTable[ConcreteItemsByBatchIds, ItemByBatchId] {
+class ItemUpdatesByBatchIdModel extends CassandraTable[ConcreteItemUpdatesByBatchIds, ItemUpdateByBatchId] {
 
-  override def tableName: String = "items_by_batch_id"
+  override def tableName: String = "itemUpdates_by_batch_id"
 
   object batchId extends UUIDColumn(this) with PartitionKey[UUID]
   object id extends TimeUUIDColumn(this) with PrimaryKey[UUID]
 
-  override def fromRow(r: Row) = ItemByBatchId(batchId(r), id(r))
+  override def fromRow(r: Row) = ItemUpdateByBatchId(batchId(r), id(r))
 }
 
 /**
   * Define the available methods for this model
   */
-abstract class ConcreteItemsByBatchIds extends ItemsByBatchIdModel with RootConnector {
+abstract class ConcreteItemUpdatesByBatchIds extends ItemUpdatesByBatchIdModel with RootConnector {
 
-  def getByBatchId(batchId: UUID): Future[List[ItemByBatchId]] = {
+  def getByBatchId(batchId: UUID): Future[List[ItemUpdateByBatchId]] = {
     select
       .where(_.batchId eqs batchId)
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .fetch()
   }
 
-  def store(item: ItemByBatchId): Future[ResultSet] = {
+  def store(itemUpdate: ItemUpdateByBatchId): Future[ResultSet] = {
     insert
-      .value(_.id, item.id)
-      .value(_.batchId, item.batchId)
+      .value(_.id, itemUpdate.id)
+      .value(_.batchId, itemUpdate.batchId)
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .future()
   }

@@ -2,56 +2,56 @@ package xap.service
 
 import com.websudos.phantom.dsl._
 import xap.database.{DatabaseProvider, Embedded3rdPartyDatabase, EmbeddedDatabase, ProductionDatabase}
-import xap.entity.Item
+import xap.entity.ItemUpdate
 
 import scala.concurrent.Future
 
-trait ItemService extends DatabaseProvider {
+trait ItemUpdateService extends DatabaseProvider {
 
   /**
-    * Find items by Id
-    * @param id Item's ID that is unique in our database
+    * Find itemUpdates by Id
+    * @param id ItemUpdate's ID that is unique in our database
     * @return
     */
-  def getItemById(id: UUID): Future[Option[Item]] = {
-    database.itemsModel.getById(id)
+  def getItemUpdateById(id: UUID): Future[Option[ItemUpdate]] = {
+    database.itemUpdatesModel.getById(id)
   }
 
   /**
-   * Find items by itemIds
+   * Find itemUpdates by itemIds
    *
-   * @param itemId Item's ID as it come from outside
+   * @param itemId ItemUpdate's ID as it come from outside
    * @return
    */
-  def getItemsByItemId(itemId: Long): Future[List[Item]] = {
+  def getItemUpdatesByItemId(itemId: Long): Future[List[ItemUpdate]] = {
     for {
-      l1 <- database.itemsByItemIdsModel.getByItemId(itemId)
-      l2 <- Future.traverse(l1)(a => database.itemsModel.getByIdList(a.id))
+      l1 <- database.itemUpdatesByItemIdsModel.getByItemId(itemId)
+      l2 <- Future.traverse(l1)(a => database.itemUpdatesModel.getByIdList(a.id))
     } yield l2.flatten
   }
 
   /**
-    * Find items by batchId
+    * Find itemUpdates by batchId
     *
-    * @param batchId Batch's ID the items attached to
+    * @param batchId Batch's ID the itemUpdates attached to
     * @return
     */
-  def getItemsByBatchId(batchId: UUID): Future[List[Item]] = {
+  def getItemUpdatesByBatchId(batchId: UUID): Future[List[ItemUpdate]] = {
     for {
-      l1 <- database.itemsByBatchIdsModel.getByBatchId(batchId)
-      l2 <- Future.traverse(l1)(a => database.itemsModel.getByIdList(a.id))
+      l1 <- database.itemUpdatesByBatchIdsModel.getByBatchId(batchId)
+      l2 <- Future.traverse(l1)(a => database.itemUpdatesModel.getByIdList(a.id))
     } yield l2.flatten
   }
   /**
-   * Save an item in both tables
+   * Save an itemUpdate in both tables
    *
-   * @param item Item
+   * @param itemUpdate ItemUpdate
    * @return
    */
-  def saveOrUpdate(item: Item): Future[ResultSet] = {
-    val byIdF = database.itemsModel.store(item)
-    val byItemIdF = database.itemsByItemIdsModel.store(item)
-    val byBatchIdF = database.itemsByBatchIdsModel.store(item)
+  def saveOrUpdate(itemUpdate: ItemUpdate): Future[ResultSet] = {
+    val byIdF = database.itemUpdatesModel.store(itemUpdate)
+    val byItemIdF = database.itemUpdatesByItemIdsModel.store(itemUpdate)
+    val byBatchIdF = database.itemUpdatesByBatchIdsModel.store(itemUpdate)
 
     for {
       byId <- byIdF
@@ -61,15 +61,15 @@ trait ItemService extends DatabaseProvider {
   }
 
   /**
-   * Delete an item in both tables
+   * Delete an itemUpdate in both tables
    *
-   * @param item Item
+   * @param itemUpdate ItemUpdate
    * @return
    */
-  def delete(item: Item): Future[ResultSet] = {
-    val byIdF = database.itemsModel.deleteById(item.id)
-    val byItemIdF = database.itemsByItemIdsModel.deleteByItemIdAndId(item.itemId, item.id)
-    val byBatchIdF = database.itemsByBatchIdsModel.deleteByBatchIdAndId(item.batchId, item.id)
+  def delete(itemUpdate: ItemUpdate): Future[ResultSet] = {
+    val byIdF = database.itemUpdatesModel.deleteById(itemUpdate.id)
+    val byItemIdF = database.itemUpdatesByItemIdsModel.deleteByItemIdAndId(itemUpdate.itemId, itemUpdate.id)
+    val byBatchIdF = database.itemUpdatesByBatchIdsModel.deleteByBatchIdAndId(itemUpdate.batchId, itemUpdate.id)
 
     for {
       byId <- byIdF
@@ -82,6 +82,6 @@ trait ItemService extends DatabaseProvider {
 /**
   * Let available a singleton instance of this service class, to prevent unnecessary instances
   */
-object ItemService extends ItemService with ProductionDatabase
-object TestItemService extends ItemService with EmbeddedDatabase
-object Test3rdPartyItemService extends ItemService with Embedded3rdPartyDatabase
+object ItemUpdateService extends ItemUpdateService with ProductionDatabase
+object TestItemUpdateService extends ItemUpdateService with EmbeddedDatabase
+object Test3rdPartyItemUpdateService extends ItemUpdateService with Embedded3rdPartyDatabase
