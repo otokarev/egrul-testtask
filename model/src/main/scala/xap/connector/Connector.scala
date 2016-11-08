@@ -29,5 +29,7 @@ object Connector {
   /**
     * Create an embedded connector, used for testing purposes
     */
-  lazy val testConnector = ContactPoint.embedded.noHeartbeat().keySpace("my_app_test")
+  lazy val testConnector = ContactPoint.embedded.noHeartbeat().keySpace("xap_test")
+
+  lazy val test3rdPartyConnector = ContactPoint.embedded.noHeartbeat().keySpace("xap_3rd_party_test")
 }

@@ -7,7 +7,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import xap.connector.Connector
 import xap.database.EmbeddedDatabase
 import xap.entity.Item
-import xap.service.ItemsService
+import xap.service.ItemService
 import xap.test.utils.CassandraSpec
 
 import scala.concurrent.Await
@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 
 class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testConnector.Connector {
 
-  object ItemsService extends ItemsService with EmbeddedDatabase
+  object ItemService extends ItemService with EmbeddedDatabase
 
   implicit val defaultPatience =
     PatienceConfig(timeout = Span(1, Seconds), interval = Span(20, Millis))
@@ -32,8 +32,9 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
   implicit object ItemGenerator extends Sample[Item] {
     override def sample: Item = {
       Item(
-        UUIDs.timeBased(),
+        UUIDs.timeBased,
         12345,
+        UUIDs.timeBased(),
         gen[DateTime],
         gen[DateTime],
         gen[String]
@@ -43,12 +44,12 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
 
   "A Item" should "be inserted into cassandra" in {
     val sample = gen[Item]
-    val future = ItemsService.saveOrUpdate(sample)
+    val future = ItemService.saveOrUpdate(sample)
 
     whenReady(future) { result =>
       result isExhausted() shouldBe true
       result wasApplied() shouldBe true
-      ItemsService.delete(sample)
+      ItemService.delete(sample)
     }
   }
 
@@ -56,14 +57,14 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
     val sample = gen[Item]
 
     val chain = for {
-      store <- ItemsService.saveOrUpdate(sample)
-      get <- ItemsService.getItemById(sample.id)
-      delete <- ItemsService.delete(sample)
+      store <- ItemService.saveOrUpdate(sample)
+      get <- ItemService.getItemById(sample.id)
+      delete <- ItemService.delete(sample)
     } yield get
 
     whenReady(chain) { res =>
       res shouldBe defined
-      ItemsService.delete(sample)
+      ItemService.delete(sample)
     }
   }
 
@@ -73,19 +74,19 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
     val sample3 = gen[Item]
 
     val future = for {
-      f1 <- ItemsService.saveOrUpdate(sample.copy(payload = "Toxicity"))
-      f2 <- ItemsService.saveOrUpdate(sample2.copy(payload = "Aerials"))
-      f3 <- ItemsService.saveOrUpdate(sample3.copy(payload = "Chop Suey"))
+      f1 <- ItemService.saveOrUpdate(sample.copy(payload = "Toxicity"))
+      f2 <- ItemService.saveOrUpdate(sample2.copy(payload = "Aerials"))
+      f3 <- ItemService.saveOrUpdate(sample3.copy(payload = "Chop Suey"))
     } yield (f1, f2, f3)
 
     whenReady(future) { insert =>
-      val itemsByItemId = ItemsService.getItemsByItemId(12345)
+      val itemsByItemId = ItemService.getItemsByItemId(12345)
       whenReady(itemsByItemId) { searchResult =>
         searchResult shouldBe a [List[_]]
         searchResult should have length 3
-        ItemsService.delete(sample)
-        ItemsService.delete(sample2)
-        ItemsService.delete(sample3)
+        ItemService.delete(sample)
+        ItemService.delete(sample2)
+        ItemService.delete(sample3)
       }
     }
   }
@@ -95,10 +96,10 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
     val updatedPayload = gen[String]
 
     val chain = for {
-      store <- ItemsService.saveOrUpdate(sample)
-      unmodified <- ItemsService.getItemById(sample.id)
-      store <- ItemsService.saveOrUpdate(sample.copy(payload = updatedPayload))
-      modified <- ItemsService.getItemById(sample.id)
+      store <- ItemService.saveOrUpdate(sample)
+      unmodified <- ItemService.getItemById(sample.id)
+      store <- ItemService.saveOrUpdate(sample.copy(payload = updatedPayload))
+      modified <- ItemService.getItemById(sample.id)
     } yield (unmodified, modified)
 
     whenReady(chain) {
@@ -109,7 +110,7 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
         modified shouldBe defined
         modified.value.payload shouldEqual updatedPayload
 
-        ItemsService.delete(modified.get)
+        ItemService.delete(modified.get)
     }
   }
 

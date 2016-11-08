@@ -10,7 +10,7 @@ import org.joda.time.DateTime
 import xap.connector.Connector
 import xap.database.ProductionDatabase
 import xap.entity.Item
-import xap.service.ItemsService
+import xap.service.ItemService
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -23,9 +23,9 @@ object ItemsStreaming extends ProductionDatabase with Connector.connector.Connec
     val truncate = database.autotruncate().future()
 
     val insert = Future.sequence(List(
-      ItemsService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], gen[DateTime], gen[DateTime], gen[String])),
-      ItemsService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], gen[DateTime], gen[DateTime], gen[String])),
-      ItemsService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], gen[DateTime], gen[DateTime], gen[String]))
+      ItemService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String])),
+      ItemService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String])),
+      ItemService.saveOrUpdate(Item(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String]))
     ))
 
     val f = for {
