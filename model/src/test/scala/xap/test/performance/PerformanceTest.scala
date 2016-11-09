@@ -39,7 +39,7 @@ class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector
       ItemUpdate(
         UUIDs.timeBased(),
         gen[Long],
-        UUIDs.timeBased(),
+        Option(UUIDs.timeBased()),
         gen[DateTime],
         gen[DateTime],
         gen[String]
@@ -75,7 +75,7 @@ class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector
     val f = Source.fromIterator(() => Iterator.range(1, maxId))
       .via(sharedKillSwitch.flow)
       .mapAsync(1000) {i =>
-        val f = ItemUpdateService.getItemUpdatesByItemId(rnd.nextInt(maxId))
+        val f = ItemUpdateService.getByItemId(rnd.nextInt(maxId))
         f.onFailure({case e => sharedKillSwitch.abort(e)})
         f
       } runWith Sink.ignore

@@ -7,7 +7,7 @@ import com.websudos.phantom.dsl.DateTime
 case class ItemUpdate(
                  id: UUID,
                  itemId: Long,
-                 batchId: UUID,
+                 batchId: Option[UUID],
                  createdAt: DateTime,
                  modifiedAt: DateTime,
                  payload: String

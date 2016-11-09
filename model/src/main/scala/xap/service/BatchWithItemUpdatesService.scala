@@ -13,7 +13,7 @@ trait BatchWithItemUpdatesService extends DatabaseProvider {
     * @param id ItemUpdate's ID that is unique in our database
     * @return
     */
-  def getBatchById(id: UUID): Future[Option[BatchWithItemUpdates]] = {
+  def get(id: UUID): Future[Option[BatchWithItemUpdates]] = {
     val batchF = database.batchesModel.getById(id)
     val batchedItemUpdatesF = database.itemUpdatesByBatchIdsModel.getByBatchId(id)
 
@@ -37,7 +37,7 @@ trait BatchWithItemUpdatesService extends DatabaseProvider {
     */
   def saveOrUpdate(batchWithItemUpdates: BatchWithItemUpdates): Future[ResultSet] = {
     val itemUpdatesF = Future.sequence(batchWithItemUpdates.itemUpdates.map {i =>
-      ItemUpdateService.saveOrUpdate(i.copy(batchId = batchWithItemUpdates.id))
+      ItemUpdateService.saveOrUpdate(i.copy(batchId = Some(batchWithItemUpdates.id)))
     })
 
     val batchF = BatchService.saveOrUpdate(batchWithItemUpdates)

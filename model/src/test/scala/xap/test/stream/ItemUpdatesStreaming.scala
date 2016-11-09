@@ -23,9 +23,9 @@ object ItemUpdatesStreaming extends ProductionDatabase with Connector.connector.
     val truncate = database.autotruncate().future()
 
     val insert = Future.sequence(List(
-      ItemUpdateService.saveOrUpdate(ItemUpdate(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String])),
-      ItemUpdateService.saveOrUpdate(ItemUpdate(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String])),
-      ItemUpdateService.saveOrUpdate(ItemUpdate(UUIDs.timeBased(), gen[Long], UUIDs.timeBased(), gen[DateTime], gen[DateTime], gen[String]))
+      ItemUpdateService.saveOrUpdate(ItemUpdate(UUIDs.timeBased(), gen[Long], Option(UUIDs.timeBased()), gen[DateTime], gen[DateTime], gen[String])),
+      ItemUpdateService.saveOrUpdate(ItemUpdate(UUIDs.timeBased(), gen[Long], Option(UUIDs.timeBased()), gen[DateTime], gen[DateTime], gen[String])),
+      ItemUpdateService.saveOrUpdate(ItemUpdate(UUIDs.timeBased(), gen[Long], Option(UUIDs.timeBased()), gen[DateTime], gen[DateTime], gen[String]))
     ))
 
     val f = for {

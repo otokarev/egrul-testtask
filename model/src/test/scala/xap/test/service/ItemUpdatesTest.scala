@@ -34,7 +34,7 @@ class ItemUpdatesTest extends CassandraSpec with EmbeddedDatabase with Connector
       ItemUpdate(
         UUIDs.timeBased,
         12345,
-        UUIDs.timeBased(),
+        Option(UUIDs.timeBased()),
         gen[DateTime],
         gen[DateTime],
         gen[String]
@@ -58,7 +58,7 @@ class ItemUpdatesTest extends CassandraSpec with EmbeddedDatabase with Connector
 
     val chain = for {
       store <- ItemUpdateService.saveOrUpdate(sample)
-      get <- ItemUpdateService.getItemUpdateById(sample.id)
+      get <- ItemUpdateService.get(sample.id)
       delete <- ItemUpdateService.delete(sample)
     } yield get
 
@@ -80,7 +80,7 @@ class ItemUpdatesTest extends CassandraSpec with EmbeddedDatabase with Connector
     } yield (f1, f2, f3)
 
     whenReady(future) { insert =>
-      val itemUpdatesByItemId = ItemUpdateService.getItemUpdatesByItemId(12345)
+      val itemUpdatesByItemId = ItemUpdateService.getByItemId(12345)
       whenReady(itemUpdatesByItemId) { searchResult =>
         searchResult shouldBe a [List[_]]
         searchResult should have length 3
@@ -97,9 +97,9 @@ class ItemUpdatesTest extends CassandraSpec with EmbeddedDatabase with Connector
 
     val chain = for {
       store <- ItemUpdateService.saveOrUpdate(sample)
-      unmodified <- ItemUpdateService.getItemUpdateById(sample.id)
+      unmodified <- ItemUpdateService.get(sample.id)
       store <- ItemUpdateService.saveOrUpdate(sample.copy(payload = updatedPayload))
-      modified <- ItemUpdateService.getItemUpdateById(sample.id)
+      modified <- ItemUpdateService.get(sample.id)
     } yield (unmodified, modified)
 
     whenReady(chain) {

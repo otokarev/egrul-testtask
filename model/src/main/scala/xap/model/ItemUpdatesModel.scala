@@ -16,7 +16,7 @@ class ItemUpdatesModel extends CassandraTable[ConcreteItemUpdatesModel, ItemUpda
 
   object id extends TimeUUIDColumn(this) with PartitionKey[UUID]
   object itemId extends LongColumn(this)
-  object batchId extends TimeUUIDColumn(this)
+  object batchId extends OptionalTimeUUIDColumn(this)
   object createdAt extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
   object modifiedAt extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
   object payload extends StringColumn(this)
@@ -62,7 +62,6 @@ abstract class ConcreteItemUpdatesModel extends ItemUpdatesModel with RootConnec
       .future()
   }
 }
-
 /**
   * Create the Cassandra representation of the ItemUpdates by ItemId table
   */

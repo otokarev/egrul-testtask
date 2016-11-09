@@ -13,7 +13,7 @@ trait BatchService extends DatabaseProvider {
     * @param id ItemUpdate's ID that is unique in our database
     * @return
     */
-  def getBatchById(id: UUID): Future[Option[Batch]] = {
+  def get(id: UUID): Future[Option[Batch]] = {
     database.batchesModel.getById(id)
   }
 
