@@ -15,4 +15,8 @@ package object entity {
   implicit def impliciteConversionOfBatchWithItemUpdatesToBatch (batchWithItemUpdates: BatchWithItemUpdates): Batch = {
     Batch(batchWithItemUpdates.id, batchWithItemUpdates.createdAt)
   }
+
+  implicit def impliciteConversionOfItemToItemBase (item: Item): ItemBase = {
+    ItemBase(item.id, item.at)
+  }
 }

@@ -1,10 +1,11 @@
 package xap.service
 
+import java.util.NoSuchElementException
+
 import com.datastax.driver.core.utils.UUIDs
 import com.websudos.phantom.dsl._
-import org.joda.time.DateTime
 import xap.database.{DatabaseProvider, Embedded3rdPartyDatabase, EmbeddedDatabase, ProductionDatabase}
-import xap.entity.{Item, ItemBase, ItemUpdate}
+import xap.entity._
 
 import scala.concurrent.Future
 
@@ -20,13 +21,14 @@ trait ItemService extends DatabaseProvider {
 
     val maybeItemUpdateF: Future[Option[ItemUpdate]] = for {
       maybeItemBase <- itemBaseF if maybeItemBase.isDefined
-      // TODO: should return last update
       itemUpdateByItemIdList <- database.itemUpdatesByItemIdsModel.getByItemId(maybeItemBase.get.id)
-      maybeItemUpdate <- database.itemUpdatesModel.getById(itemUpdateByItemIdList.last.id)
+      maybeItemUpdate <- database.itemUpdatesModel.getById(itemUpdateByItemIdList.head.id)
     } yield maybeItemUpdate
 
-    maybeItemUpdateF map {
-      case Some(a) => Some(Item(a.itemId, Some(a.createdAt), a.payload))
+    maybeItemUpdateF recover {
+      case e: NoSuchElementException => None
+    } map {
+      case Some(a) => Some(Item(a.itemId, a.modifiedAt, a.payload))
       case _ => None
     }
 
@@ -42,31 +44,40 @@ trait ItemService extends DatabaseProvider {
 
     database.itemBasesModel.getById(item.id).flatMap {
       case Some(itemBase) =>
-        assert(itemBase != item.asInstanceOf[ItemBase], "Stored ItemBase cannot be changed")
+        //noinspection ComparingUnrelatedTypes
+        assert(itemBase != item, "Stored ItemBase cannot be changed")
         val itemUpdate = ItemUpdate(
           UUIDs.timeBased(),
           itemBase.id,
           None,
           itemBase.createdAt,
-          DateTime.now(),
+          item.at,
           item.payload)
 
-        database.itemUpdatesModel.store(itemUpdate)
+        val itemUpdateF = database.itemUpdatesModel.store(itemUpdate)
+        val itemUpdateByItemIdF = database.itemUpdatesByItemIdsModel.store(itemUpdate)
+        for {
+          itemUpdate <- itemUpdateF
+          itemUpdateByItemId <- itemUpdateByItemIdF
+        } yield itemUpdate
       case None =>
         // TODO: who catches failure if there are no onFailure?
-        val now = DateTime.now()
+        val now = item.at
         val itemBaseF = database.itemBasesModel.store(ItemBase(item.id, now))
-        // TODO: Store ItemUpdate
-        val itemUpdateF = database.itemUpdatesModel.store(ItemUpdate(
+        // TODO: Refactoring: whole ItemUpdate internals must be encapsulated in ItemUpdateService
+        val itemUpdate = ItemUpdate(
           UUIDs.timeBased(),
           item.id,
           None,
           now,
           now,
-          item.payload))
+          item.payload)
+        val itemUpdateF = database.itemUpdatesModel.store(itemUpdate)
+        val itemUpdateByItemIdF = database.itemUpdatesByItemIdsModel.store(itemUpdate)
         for {
           itemBase <- itemBaseF
           itemUpdate <- itemUpdateF
+          itemUpdateByItemId <- itemUpdateByItemIdF
           // TODO: What does ResultSet contain for `insert`???
         } yield itemBase
     }

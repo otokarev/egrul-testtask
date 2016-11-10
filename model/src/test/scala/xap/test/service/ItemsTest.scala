@@ -1,7 +1,7 @@
 package xap.test.service
 
 import com.websudos.util.testing._
-import org.joda.time.DateTime
+import org.joda.time._
 import org.scalatest.time.{Millis, Seconds, Span}
 import xap.connector.Connector
 import xap.database.EmbeddedDatabase
@@ -12,6 +12,7 @@ import xap.test.utils.CassandraSpec
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testConnector.Connector {
 
@@ -23,19 +24,19 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
 
   override def beforeAll(): Unit = {
     println("before all")
-    Await.result(database.autocreate().future(), 5.seconds)
+    Await.result(database.autocreate().future(), 5 seconds)
   }
 
   override def afterAll(): Unit = {
     println("after all")
-    Await.result(database.autotruncate().future(), 5.seconds)
+    Await.result(database.autotruncate().future(), 10 seconds)
   }
 
   implicit object ItemGenerator extends Sample[Item] {
     override def sample: Item = {
       Item(
         gen[Long],
-        Some(gen[DateTime]),
+        new DateTime(DateTimeZone.UTC),
         gen[String]
       )
     }
@@ -44,7 +45,6 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
   val sample: Item = gen[Item]
 
   "An Item" should "be inserted into C*" in {
-    val sample: Item = gen[Item]
     val future = ItemService.saveOrUpdate(sample)
 
     whenReady(future) { result =>
@@ -57,7 +57,7 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
     val future = ItemService.getById(sample.id)
 
     whenReady(future) { result =>
-      result.get shouldBe Some(sample.copy(at = None))
+      result shouldBe Some(sample)
     }
   }
 
@@ -65,8 +65,24 @@ class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testC
     val future = ItemBaseService.getById(sample.id)
 
     whenReady(future) { result =>
-      result shouldBe Some(ItemBase(sample.id, sample.at.get))
+      result shouldBe Some(ItemBase(sample.id, sample.at))
     }
   }
 
+  "The latest version of Item" should "be readable from C*" in {
+    var time = DateTime.now(DateTimeZone.UTC)
+
+    // TODO: We can insert Items one by one only.. It's a problem :-/
+    val samples = (1 to 100).toList.map { a =>
+      time = time.plusSeconds(3)
+      Item(5000, time, gen[String])
+    }
+
+    samples map {a => Await.result(ItemService.saveOrUpdate(a), 1 second)}
+
+    val result = Await.result(ItemService.getById(5000), 1 second)
+
+    println(samples.last)
+    result shouldBe Some(samples.last)
+  }
 }

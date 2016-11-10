@@ -4,7 +4,7 @@ import com.websudos.phantom.dsl.DateTime
 
 case class Item(
                  id: Long,
-                 at: Option[DateTime],
+                 at: DateTime,
                  payload: String
                )
 
