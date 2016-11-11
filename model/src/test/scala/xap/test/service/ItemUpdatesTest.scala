@@ -4,19 +4,17 @@ import com.datastax.driver.core.utils.UUIDs
 import com.websudos.util.testing._
 import org.joda.time.DateTime
 import org.scalatest.time.{Millis, Seconds, Span}
-import xap.connector.Connector
-import xap.database.EmbeddedDatabase
 import xap.entity.ItemUpdate
 import xap.service.ItemUpdateService
-import xap.test.utils.CassandraSpec
+import xap.test.utils.{CassandraSpec, WithGuiceInjectorAndImplicites}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class ItemUpdatesTest extends CassandraSpec with EmbeddedDatabase with Connector.testConnector.Connector {
+class ItemUpdatesTest extends CassandraSpec with WithGuiceInjectorAndImplicites{
 
-  object ItemUpdateService extends ItemUpdateService with EmbeddedDatabase
+  val ItemUpdateService = injector.getInstance(classOf[ItemUpdateService])
 
   implicit val defaultPatience =
     PatienceConfig(timeout = Span(1, Seconds), interval = Span(20, Millis))

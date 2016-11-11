@@ -3,21 +3,19 @@ package xap.test.service
 import com.websudos.util.testing._
 import org.joda.time._
 import org.scalatest.time.{Millis, Seconds, Span}
-import xap.connector.Connector
-import xap.database.EmbeddedDatabase
 import xap.entity.{Item, ItemBase}
 import xap.service.{ItemBaseService, ItemService}
-import xap.test.utils.CassandraSpec
+import xap.test.utils.{CassandraSpec, WithGuiceInjectorAndImplicites}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class ItemsTest extends CassandraSpec with EmbeddedDatabase with Connector.testConnector.Connector {
+class ItemsTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
 
-  object ItemService extends ItemService with EmbeddedDatabase
-  object ItemBaseService extends ItemBaseService with EmbeddedDatabase
+  val ItemService = injector.getInstance(classOf[ItemService])
+  val ItemBaseService = injector.getInstance(classOf[ItemBaseService])
 
   implicit val defaultPatience =
     PatienceConfig(timeout = Span(1, Seconds), interval = Span(20, Millis))

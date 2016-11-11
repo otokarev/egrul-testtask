@@ -1,12 +1,14 @@
 package xap.service
 
+import javax.inject.Inject
+
 import com.websudos.phantom.dsl._
-import xap.database.{DatabaseProvider, Embedded3rdPartyDatabase, EmbeddedDatabase, ProductionDatabase}
+import xap.database.DatabaseProvider
 import xap.entity.BatchWithItemUpdates
 
 import scala.concurrent.Future
 
-trait BatchWithItemUpdatesService extends DatabaseProvider {
+class BatchWithItemUpdatesService @Inject()(BatchService: BatchService, ItemUpdateService: ItemUpdateService) extends DatabaseProvider {
 
   /**
     * Find batch by Id
@@ -49,11 +51,4 @@ trait BatchWithItemUpdatesService extends DatabaseProvider {
   }
 
 }
-
-/**
-  * Let available a singleton instance of this service class, to prevent unnecessary instances
-  */
-object BatchWithItemUpdatesService extends BatchService with ProductionDatabase
-object TestBatchWithItemUpdatesService extends BatchService with EmbeddedDatabase
-object Test3rdPartyBatchWithItemUpdatesService extends BatchService with Embedded3rdPartyDatabase
 

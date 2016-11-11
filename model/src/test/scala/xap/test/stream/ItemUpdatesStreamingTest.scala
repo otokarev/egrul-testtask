@@ -1,24 +1,21 @@
 package xap.test.stream
 
-import akka.actor.ActorSystem
-import akka.stream._
 import akka.stream.scaladsl._
 import com.datastax.driver.core.utils.UUIDs
 import com.websudos.phantom.reactivestreams._
 import com.websudos.util.testing._
 import org.joda.time.DateTime
-import xap.connector.Connector
-import xap.database.ProductionDatabase
 import xap.entity.ItemUpdate
 import xap.service.ItemUpdateService
+import xap.test.utils.{CassandraSpec, WithGuiceInjectorAndImplicites}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-object ItemUpdatesStreaming extends ProductionDatabase with Connector.connector.Connector {
+class ItemUpdatesStreamingTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
 
-  def main(args: Array[String]) {
+    val ItemUpdateService = injector.getInstance(classOf[ItemUpdateService])
 
     val truncate = database.autotruncate().future()
 
@@ -35,13 +32,9 @@ object ItemUpdatesStreaming extends ProductionDatabase with Connector.connector.
 
     Await.result(f, 10.seconds)
 
-    implicit val system = ActorSystem("QuickStart")
-    implicit val materializer = ActorMaterializer()
-
     Source
       .fromPublisher(database.itemUpdatesModel.publisher())
       .via(Flow[ItemUpdate].map(itemUpdate => s"Id: ${itemUpdate.id} - ItemId: ${itemUpdate.itemId} - CreationDate: ${itemUpdate.modifiedAt}"))
       .to(Sink.foreach(println))
       .run()
-  }
 }

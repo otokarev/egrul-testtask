@@ -1,16 +1,13 @@
 package xap.test.performance
 
-import akka.actor.ActorSystem
+import akka.stream.KillSwitches
 import akka.stream.scaladsl.{Sink, Source}
-import akka.stream.{ActorMaterializer, KillSwitches}
 import com.datastax.driver.core.utils.UUIDs
 import com.websudos.util.testing._
 import org.joda.time.DateTime
-import xap.connector.Connector
-import xap.database.EmbeddedDatabase
 import xap.entity.ItemUpdate
 import xap.service.ItemUpdateService
-import xap.test.utils.CassandraSpec
+import xap.test.utils.{CassandraSpec, WithGuiceInjectorAndImplicites}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,12 +15,10 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Random
 
-class PerformanceTest extends CassandraSpec with EmbeddedDatabase with Connector.testConnector.Connector {
+class PerformanceTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
 
-  object ItemUpdateService extends ItemUpdateService with EmbeddedDatabase
+  val ItemUpdateService = injector.getInstance(classOf[ItemUpdateService])
 
-  implicit val system = ActorSystem("QuickStart")
-  implicit val materializer = ActorMaterializer()
   val sharedKillSwitch = KillSwitches.shared("shared-kill-switch")
 
   override def beforeAll(): Unit = {

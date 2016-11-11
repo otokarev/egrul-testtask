@@ -1,12 +1,12 @@
 package xap.service
 
 import com.websudos.phantom.dsl._
-import xap.database.{DatabaseProvider, Embedded3rdPartyDatabase, EmbeddedDatabase, ProductionDatabase}
+import xap.database.DatabaseProvider
 import xap.entity.ItemBase
 
 import scala.concurrent.Future
 
-trait ItemBaseService extends DatabaseProvider {
+class ItemBaseService extends DatabaseProvider {
 
   /**
     * Find itemBase by Id
@@ -28,11 +28,3 @@ trait ItemBaseService extends DatabaseProvider {
   }
 
 }
-
-/**
-  * Let available a singleton instance of this service class, to prevent unnecessary instances
-  */
-object ItemBaseService extends ItemBaseService with ProductionDatabase
-object TestItemBaseService extends ItemBaseService with EmbeddedDatabase
-object Test3rdPartyItemBaseService extends ItemBaseService with Embedded3rdPartyDatabase
-

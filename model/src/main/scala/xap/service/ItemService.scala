@@ -4,12 +4,12 @@ import java.util.NoSuchElementException
 
 import com.datastax.driver.core.utils.UUIDs
 import com.websudos.phantom.dsl._
-import xap.database.{DatabaseProvider, Embedded3rdPartyDatabase, EmbeddedDatabase, ProductionDatabase}
+import xap.database.DatabaseProvider
 import xap.entity._
 
 import scala.concurrent.Future
 
-trait ItemService extends DatabaseProvider {
+class ItemService extends DatabaseProvider {
 
   /**
     * Find item by Id
@@ -85,11 +85,3 @@ trait ItemService extends DatabaseProvider {
   }
 
 }
-
-/**
-  * Let available a singleton instance of this service class, to prevent unnecessary instances
-  */
-object ItemService extends ItemBaseService with ProductionDatabase
-object TestItemService extends ItemBaseService with EmbeddedDatabase
-object Test3rdPartyBaseService extends ItemBaseService with Embedded3rdPartyDatabase
-

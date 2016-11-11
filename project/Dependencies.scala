@@ -12,17 +12,18 @@ object Dependencies {
   val common = Seq(
     "com.typesafe" % "config" % "1.3.1",
     "joda-time" % "joda-time" % "2.9.5",
-    "com.github.nscala-time" %% "nscala-time" % "2.14.0"
+    "com.github.nscala-time" %% "nscala-time" % "2.14.0",
+    "com.google.inject" % "guice" % "4.1.0"
   )
 
   val db = Seq(
-    "com.websudos"  %% "phantom-connectors" % Version.phantom,
-    "com.websudos"  %% "phantom-dsl" % Version.phantom,
-    "com.websudos"  %% "phantom-example" % Version.phantom,
-    "com.websudos"  %% "phantom-finagle" % Version.phantom,
-    "com.websudos"  %% "phantom-jdk8" % Version.phantom,
-    "com.websudos"  %% "phantom-thrift" % Version.phantom,
-    "com.websudos"  %% "phantom-reactivestreams" % Version.phantom,
+    "com.websudos" %% "phantom-connectors" % Version.phantom,
+    "com.websudos" %% "phantom-dsl" % Version.phantom,
+    "com.websudos" %% "phantom-example" % Version.phantom,
+    "com.websudos" %% "phantom-finagle" % Version.phantom,
+    "com.websudos" %% "phantom-jdk8" % Version.phantom,
+    "com.websudos" %% "phantom-thrift" % Version.phantom,
+    "com.websudos" %% "phantom-reactivestreams" % Version.phantom,
     "com.websudos" %% "util-testing" % "0.13.0" % "test, provided"
   )
 
