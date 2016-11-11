@@ -1,18 +1,20 @@
 package xap.service
 
+import com.datastax.driver.core.ResultSet
 import com.websudos.phantom.dsl._
 import xap.database.DatabaseProvider
 import xap.entity.ItemUpdate
 
+import scala.collection.mutable
 import scala.concurrent.Future
 
 class ItemUpdateService extends DatabaseProvider {
 
   /**
-    * Find itemUpdates by Id
-    * @param id ItemUpdate's ID that is unique in our database
-    * @return
-    */
+   * Find itemUpdates by Id
+   * @param id ItemUpdate's ID that is unique in our database
+   * @return
+   */
   def get(id: UUID): Future[Option[ItemUpdate]] = {
     database.itemUpdatesModel.getById(id)
   }
@@ -31,11 +33,23 @@ class ItemUpdateService extends DatabaseProvider {
   }
 
   /**
-    * Find itemUpdates by batchId
-    *
-    * @param batchId Batch's ID the itemUpdates attached to
-    * @return
-    */
+   * Return ItemUpdate object with latest modifiedAt for given itemId
+   * @param itemId Item ID
+   * @return
+   */
+  def getLastForItemId(itemId: Long): Future[Option[ItemUpdate]] = {
+    for {
+      itemUpdateByItemIdList <- database.itemUpdatesByItemIdsModel.getByItemId(itemId)
+      maybeItemUpdate <- database.itemUpdatesModel.getById(itemUpdateByItemIdList.head.id)
+    } yield maybeItemUpdate
+  }
+
+  /**
+   * Find itemUpdates by batchId
+   *
+   * @param batchId Batch's ID the itemUpdates attached to
+   * @return
+   */
   def getByBatchId(batchId: UUID): Future[List[ItemUpdate]] = {
     for {
       l1 <- database.itemUpdatesByBatchIdsModel.getByBatchId(batchId)
@@ -49,15 +63,17 @@ class ItemUpdateService extends DatabaseProvider {
    * @return
    */
   def saveOrUpdate(itemUpdate: ItemUpdate): Future[ResultSet] = {
-    val byIdF = database.itemUpdatesModel.store(itemUpdate)
-    val byItemIdF = database.itemUpdatesByItemIdsModel.store(itemUpdate)
-    val byBatchIdF = database.itemUpdatesByBatchIdsModel.store(itemUpdate)
+    val listF = mutable.MutableList(
+      database.itemUpdatesModel.store(itemUpdate),
+      database.itemUpdatesByItemIdsModel.store(itemUpdate)
+    )
 
-    for {
-      byId <- byIdF
-      byItemId <- byItemIdF
-      byBatchId <- byBatchIdF
-    } yield byItemId
+    if (itemUpdate.batchId.isDefined) {
+      listF += database.itemUpdatesByBatchIdsModel.store(itemUpdate)
+    }
+
+    Future.sequence(listF.toList).map(l => l.head /*leave only one ResultSet*/ )
+
   }
 
   /**
