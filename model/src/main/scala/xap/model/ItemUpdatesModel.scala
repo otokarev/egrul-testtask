@@ -43,6 +43,15 @@ abstract class ConcreteItemUpdatesModel extends ItemUpdatesModel with RootConnec
       .fetch()
   }
 
+  def getByDateTimeRange(range: (DateTime, DateTime)): Future[List[ItemUpdate]] = {
+    select
+      .where(_.modifiedAt gt range._1)
+      .and(_.modifiedAt lt range._2)
+      .allowFiltering()
+      .consistencyLevel_=(ConsistencyLevel.ONE)
+      .fetch()
+  }
+
   def store(itemUpdate: ItemUpdate): Future[ResultSet] = {
     insert
       .value(_.id, itemUpdate.id)

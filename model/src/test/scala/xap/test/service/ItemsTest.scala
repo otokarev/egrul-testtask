@@ -21,12 +21,10 @@ class ItemsTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
     PatienceConfig(timeout = Span(1, Seconds), interval = Span(20, Millis))
 
   override def beforeAll(): Unit = {
-    println("before all")
     Await.result(database.autocreate().future(), 5 seconds)
   }
 
   override def afterAll(): Unit = {
-    println("after all")
     Await.result(database.autotruncate().future(), 10 seconds)
   }
 

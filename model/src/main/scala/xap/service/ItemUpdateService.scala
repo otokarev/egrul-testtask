@@ -45,6 +45,17 @@ class ItemUpdateService extends DatabaseProvider {
   }
 
   /**
+    * Return ItemUpdate objects for given datetime range
+    * @param range (start: DateTime, end: DateTime) DateTime range
+    * @return
+    */
+  def getByDateTimeRange(range: (DateTime, DateTime)): Future[List[ItemUpdate]] = {
+    for {
+      itemUpdates <- database.itemUpdatesModel.getByDateTimeRange(range)
+    } yield itemUpdates
+  }
+
+  /**
    * Find itemUpdates by batchId
    *
    * @param batchId Batch's ID the itemUpdates attached to
