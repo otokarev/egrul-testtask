@@ -6,6 +6,7 @@ import org.joda.time.{DateTime, DateTimeZone}
 import xap.entity.{BatchWithItemUpdates, Item}
 import xap.service.{BatchWithItemUpdatesService, ItemService, ItemUpdateService}
 import xap.test.utils.{CassandraSpec, WithGuiceInjectorAndImplicites}
+import xap.util.LoremIpsum
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
@@ -55,13 +56,15 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
     generateBatches()
   }
 
-  /**
-    * Generate items and items' updates
-    */
+  "Batches" should "be retrieved" in {
+    val r = BatchWithItemUpdatesService.getByDateTimeRange((startDateTime, startDateTime.plusDays(daysNum)))
+    // TODO: generate XML
+  }
+
   def generateBatches() = {
 
     // Loop 9 time periods
-    val result = (0 to daysNum).toList
+    val result = (0 until daysNum).toList
       // Calculate ranges for every time period
       .map { i => (startDateTime.plusDays(i), startDateTime.plusDays(i).withTime(23, 59, 59, 999)) }
       // Loop periods
@@ -75,13 +78,10 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
       }
   }
 
-  /**
-    * Generate items and items' updates
-    */
   def generateTestItems() = {
 
     // Loop 9 time periods
-    (0 to daysNum).toList
+    (0 until daysNum).toList
       // Calculate ranges for every time period
       .map { i => (startDateTime.plusDays(i), startDateTime.plusDays(i).withTime(23, 59, 59, 999)) }
       // Loop periods
@@ -91,7 +91,7 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
         txnPerDay.start + rnd.nextInt(txnPerDay.length)
       }).foreach { a =>
         val dateTime = r._1.plusMillis(rnd.nextInt((r._2.getMillis - r._1.getMillis).toInt))
-        val item = Item(rnd.nextInt(itemIdRange.last), dateTime, gen[String])
+        val item = Item(rnd.nextInt(itemIdRange.last), dateTime, LoremIpsum.getRandomNumberOfWords(1000 to 5000))
         Await.ready(ItemService.saveOrUpdate(item), 1 second)
       }
     }

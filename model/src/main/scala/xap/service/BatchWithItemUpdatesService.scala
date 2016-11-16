@@ -32,6 +32,21 @@ class BatchWithItemUpdatesService @Inject()(BatchService: BatchService, ItemUpda
   }
 
   /**
+    * Find batch with item updates by DateTime range
+    * @param range (DateTime, DateTime)
+    * @return
+    */
+  def getByDateTimeRange(range: (DateTime, DateTime)): Future[List[BatchWithItemUpdates]] = {
+    val r = BatchService.getByDateTimeRange(range)
+      .flatMap(
+        l => Future.sequence(
+          l.map {b => get(b.id).collect {case Some(a) => a} }
+        )
+      )
+    r
+  }
+
+  /**
     * Save an itemUpdate in both tables
     *
     * @param batchWithItemUpdates BatchWithItemUpdates

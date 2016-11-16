@@ -18,6 +18,15 @@ class BatchService extends DatabaseProvider {
   }
 
   /**
+    * Find batch by DateTime range
+    * @param range (DateTime, DateTime)
+    * @return
+    */
+  def getByDateTimeRange(range: (DateTime, DateTime)): Future[List[Batch]] = {
+    database.batchesModel.getByDateTimeRange(range)
+  }
+
+  /**
    * Save an itemUpdate in both tables
    *
    * @param batch Batch

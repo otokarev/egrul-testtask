@@ -32,6 +32,15 @@ abstract class ConcreteBatchesModel extends BatchesModel with RootConnector {
       .one()
   }
 
+  def getByDateTimeRange(range: (DateTime, DateTime)): Future[List[Batch]] = {
+    select
+      .where(_.createdAt gt range._1)
+      .and(_.createdAt lt range._2)
+      .allowFiltering()
+      .consistencyLevel_=(ConsistencyLevel.ONE)
+      .fetch()
+  }
+
   def getByIdList(id: UUID): Future[List[Batch]] = {
     select
       .where(_.id eqs id)

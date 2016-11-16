@@ -78,7 +78,6 @@ class ItemsTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
 
     val result = Await.result(ItemService.getById(5000), 1 second)
 
-    println(samples.last)
     result shouldBe Some(samples.last)
   }
 }
