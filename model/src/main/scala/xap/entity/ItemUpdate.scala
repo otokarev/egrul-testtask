@@ -19,6 +19,6 @@ case class ItemUpdateByItemId(
                          createdAt: DateTime
                )
 case class ItemUpdateByBatchId(
-                         id: UUID,
-                         batchId: UUID
+                         batchId: UUID,
+                         id: UUID
                        )

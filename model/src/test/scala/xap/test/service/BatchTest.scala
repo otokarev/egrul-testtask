@@ -39,12 +39,13 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
     }
   }
 
-  val itemIdRange = 1 to 10000
+  val itemIdRange = 1 to 10
 
   val itemIds = ListBuffer(itemIdRange)
   val rnd = new Random()
-  val txnPerDay = 20 to 50
+  val txnPerDay = 5 to 15
   val daysNum = 10
+  val loremIpsumWordsNumRange = 2 to 3
 
   val startDateTime = DateTime.now(DateTimeZone.UTC).withTime(0, 0, 0, 0)
 
@@ -57,8 +58,16 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
   }
 
   "Batches" should "be retrieved" in {
-    val r = BatchWithItemUpdatesService.getByDateTimeRange((startDateTime, startDateTime.plusDays(daysNum)))
-    // TODO: generate XML
+    val l = Await.result(BatchWithItemUpdatesService.getByDateTimeRange((startDateTime, startDateTime.plusDays(daysNum))), 1 second)
+
+    l.foreach { b =>
+      val xml = <batch id={b.id.toString} createdAt={b.createdAt.toString()}>{
+        b.itemUpdates.map { i =>
+          <item id={i.id.toString} createdAt={i.createdAt.toString()} modifiedAt={i.modifiedAt.toString()}><payload>{i.payload.toString}</payload></item>
+        }
+      }</batch>
+      println(xml.toString())
+    }
   }
 
   def generateBatches() = {
@@ -69,8 +78,6 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
       .map { i => (startDateTime.plusDays(i), startDateTime.plusDays(i).withTime(23, 59, 59, 999)) }
       // Loop periods
       .foreach { r =>
-        val itemUpdates = Await.result(ItemUpdateService.getByDateTimeRange(r), 1 second)
-        BatchWithItemUpdatesService.saveOrUpdate(BatchWithItemUpdates(UUIDs.timeBased(), r._2, itemUpdates))
         Await.ready(for {
           itemUpdates <- ItemUpdateService.getByDateTimeRange(r)
           batchWithItemUpdatesRs <- BatchWithItemUpdatesService.saveOrUpdate(BatchWithItemUpdates(UUIDs.timeBased(), r._2, itemUpdates))
@@ -91,7 +98,7 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
         txnPerDay.start + rnd.nextInt(txnPerDay.length)
       }).foreach { a =>
         val dateTime = r._1.plusMillis(rnd.nextInt((r._2.getMillis - r._1.getMillis).toInt))
-        val item = Item(rnd.nextInt(itemIdRange.last), dateTime, LoremIpsum.getRandomNumberOfWords(1000 to 5000))
+        val item = Item(rnd.nextInt(itemIdRange.last), dateTime, LoremIpsum.getRandomNumberOfWords(loremIpsumWordsNumRange))
         Await.ready(ItemService.saveOrUpdate(item), 1 second)
       }
     }

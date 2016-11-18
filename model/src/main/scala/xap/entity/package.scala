@@ -9,7 +9,7 @@ package object entity {
   }
 
   implicit def impliciteConversionOfItemUpdateToItemUpdateByBatchId (itemUpdate: ItemUpdate): ItemUpdateByBatchId = {
-    ItemUpdateByBatchId(itemUpdate.id, itemUpdate.batchId.get)
+    ItemUpdateByBatchId(itemUpdate.batchId.get, itemUpdate.id)
   }
 
   implicit def impliciteConversionOfBatchWithItemUpdatesToBatch (batchWithItemUpdates: BatchWithItemUpdates): Batch = {

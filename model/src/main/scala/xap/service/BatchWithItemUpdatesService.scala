@@ -21,7 +21,7 @@ class BatchWithItemUpdatesService @Inject()(BatchService: BatchService, ItemUpda
 
     val f = for {
       batchedItemUpdates <- batchedItemUpdatesF
-      itemUpdates <- Future.traverse(batchedItemUpdates)(a => database.itemUpdatesModel.getByIdList(a.id))
+      itemUpdates <- Future.sequence(batchedItemUpdates.map(a => database.itemUpdatesModel.getByIdList(a.id)))
       batch <- batchF
     } yield (itemUpdates.flatten, batch)
 
