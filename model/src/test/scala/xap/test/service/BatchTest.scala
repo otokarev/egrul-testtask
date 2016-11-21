@@ -58,16 +58,26 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
   }
 
   "Batches" should "be retrieved" in {
+    import java.io.FileOutputStream
+    import java.util.zip.{ZipEntry, ZipOutputStream}
+
+    val zipFile = "./batch_archive_daily-" + DateTime.now().toString("YYYY-MM-dd") + ".zip"
+    val zip = new ZipOutputStream(new FileOutputStream(zipFile))
+
     val l = Await.result(BatchWithItemUpdatesService.getByDateTimeRange((startDateTime, startDateTime.plusDays(daysNum))), 1 second)
 
     l.foreach { b =>
+      val xmlFile = "batch-" + b.createdAt.toString("YYYY-MM-dd") + ".XML"
+      zip.putNextEntry(new ZipEntry(xmlFile))
       val xml = <batch id={b.id.toString} createdAt={b.createdAt.toString()}>{
         b.itemUpdates.map { i =>
           <item id={i.id.toString} createdAt={i.createdAt.toString()} modifiedAt={i.modifiedAt.toString()}><payload>{i.payload.toString}</payload></item>
         }
       }</batch>
-      println(xml.toString())
+      zip.write(xml.toString().getBytes)
+      zip.closeEntry()
     }
+    zip.close()
   }
 
   def generateBatches() = {
@@ -104,5 +114,24 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
     }
   }
 
+  def zip(out: String, files: Iterable[String]) = {
+    import java.io.{BufferedInputStream, FileInputStream, FileOutputStream}
+    import java.util.zip.{ZipEntry, ZipOutputStream}
+
+    val zip = new ZipOutputStream(new FileOutputStream(out))
+
+    files.foreach { name =>
+      zip.putNextEntry(new ZipEntry(name))
+      val in = new BufferedInputStream(new FileInputStream(name))
+      var b = in.read()
+      while (b > -1) {
+        zip.write(b)
+        b = in.read()
+      }
+      in.close()
+      zip.closeEntry()
+    }
+    zip.close()
+  }
 
 }
