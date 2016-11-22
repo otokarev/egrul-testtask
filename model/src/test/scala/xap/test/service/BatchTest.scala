@@ -1,6 +1,7 @@
 package xap.test.service
 
 import com.datastax.driver.core.utils.UUIDs
+import com.typesafe.config.ConfigFactory
 import com.websudos.util.testing._
 import org.joda.time.{DateTime, DateTimeZone}
 import xap.entity.{BatchWithItemUpdates, Item}
@@ -9,9 +10,9 @@ import xap.test.utils.{CassandraSpec, WithGuiceInjectorAndImplicites}
 import xap.util.LoremIpsum
 
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.util.Random
 
@@ -20,6 +21,8 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
   val ItemUpdateService = injector.getInstance(classOf[ItemUpdateService])
   val ItemService = injector.getInstance(classOf[ItemService])
   val BatchWithItemUpdatesService = injector.getInstance(classOf[BatchWithItemUpdatesService])
+
+  val archiveDir = ConfigFactory.load().getString("xmlarchiveparser.dir")
 
   override def beforeAll(): Unit = {
     Await.result(database.autocreate().future(), 5 seconds)
@@ -44,8 +47,9 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
   val itemIds = ListBuffer(itemIdRange)
   val rnd = new Random()
   val txnPerDay = 5 to 15
-  val daysNum = 10
-  val loremIpsumWordsNumRange = 2 to 3
+  val daysNum = 100
+  val loremIpsumWordsNumRange = 2000 to 3000
+  val daysPerBatch = 10
 
   val startDateTime = DateTime.now(DateTimeZone.UTC).withTime(0, 0, 0, 0)
 
@@ -57,27 +61,44 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
     generateBatches()
   }
 
-  "Batches" should "be retrieved" in {
+  "Batches ZIP-archives" should "be generated" in {
     import java.io.FileOutputStream
     import java.util.zip.{ZipEntry, ZipOutputStream}
 
-    val zipFile = "./batch_archive_daily-" + DateTime.now().toString("YYYY-MM-dd") + ".zip"
-    val zip = new ZipOutputStream(new FileOutputStream(zipFile))
+    val r = (0 until daysNum).toList.grouped(daysPerBatch).toList
+      .map { list => (startDateTime.plusDays(list.head), startDateTime.plusDays(list.last).withTime(23, 59, 59, 999)) }
+      .map { a =>
+        BatchWithItemUpdatesService.getByDateTimeRange((a._1, a._2)).map(b => (b, a._2))
+      }
 
-    val l = Await.result(BatchWithItemUpdatesService.getByDateTimeRange((startDateTime, startDateTime.plusDays(daysNum))), 1 second)
+    Future.sequence(r).map { r: List[(List[BatchWithItemUpdates], DateTime)] =>
+      r.foreach { l =>
+        val zipFile = archiveDir + "/batch_archive_daily-" + l._2.toString("YYYY-MM-dd") + ".zip"
 
-    l.foreach { b =>
-      val xmlFile = "batch-" + b.createdAt.toString("YYYY-MM-dd") + ".XML"
-      zip.putNextEntry(new ZipEntry(xmlFile))
-      val xml = <batch id={b.id.toString} createdAt={b.createdAt.toString()}>{
-        b.itemUpdates.map { i =>
-          <item id={i.id.toString} createdAt={i.createdAt.toString()} modifiedAt={i.modifiedAt.toString()}><payload>{i.payload.toString}</payload></item>
+        val zip = new ZipOutputStream(new FileOutputStream(zipFile))
+
+        l._1.foreach { b =>
+          val xmlFile = "batch-" + b.createdAt.toString("YYYY-MM-dd") + ".XML"
+          zip.putNextEntry(new ZipEntry(xmlFile))
+
+          val xml = <batch id={b.id.toString} createdAt={b.createdAt.toString()}>
+            {b.itemUpdates.map { i =>
+              <item id={i.id.toString} createdAt={i.createdAt.toString()} modifiedAt={i.modifiedAt.toString()}>
+                <payload>
+                  {i.payload.toString}
+                </payload>
+              </item>
+            }}
+          </batch>
+
+          zip.write(xml.toString().getBytes)
+          zip.closeEntry()
         }
-      }</batch>
-      zip.write(xml.toString().getBytes)
-      zip.closeEntry()
+
+        zip.close()
+      }
     }
-    zip.close()
+
   }
 
   def generateBatches() = {
@@ -113,25 +134,4 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
       }
     }
   }
-
-  def zip(out: String, files: Iterable[String]) = {
-    import java.io.{BufferedInputStream, FileInputStream, FileOutputStream}
-    import java.util.zip.{ZipEntry, ZipOutputStream}
-
-    val zip = new ZipOutputStream(new FileOutputStream(out))
-
-    files.foreach { name =>
-      zip.putNextEntry(new ZipEntry(name))
-      val in = new BufferedInputStream(new FileInputStream(name))
-      var b = in.read()
-      while (b > -1) {
-        zip.write(b)
-        b = in.read()
-      }
-      in.close()
-      zip.closeEntry()
-    }
-    zip.close()
-  }
-
 }
