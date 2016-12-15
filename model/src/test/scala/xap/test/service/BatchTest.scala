@@ -13,8 +13,9 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+import scala.io.Source
 import scala.language.postfixOps
-import scala.util.Random
+import scala.util.{Failure, Random, Success, Try}
 
 class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
 
@@ -23,6 +24,8 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
   val BatchWithItemUpdatesService = injector.getInstance(classOf[BatchWithItemUpdatesService])
 
   val archiveDir = ConfigFactory.load().getString("xmlarchiveparser.dir")
+  val archiveFilePattern = """batch_archive_daily-.*\.zip""".r
+  val batchFilePattern = """batch-.*\.XML""".r
 
   override def beforeAll(): Unit = {
     Await.result(database.autocreate().future(), 5 seconds)
@@ -99,6 +102,34 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
       }
     }
 
+  }
+
+  "ZIP-archives" should "be read, parsed and loaded" in {
+    import java.io._
+    import java.util.zip.ZipFile
+
+    import scala.collection.JavaConversions._
+
+    val archiveFiles = new File(archiveDir).listFiles()
+      .filter(_.isFile).toList.filter(archiveFilePattern findFirstIn _.getName isDefined).map(_.getName)
+
+    archiveFiles.foreach {file =>
+      val path = archiveDir+"/"+file
+      val zipFile = Try {new ZipFile(path)} match {
+        case Success(a) => a
+        case Failure(e) => throw new Exception(s"Cannot open file: `$path`")
+      }
+      zipFile.entries.toList.filter(batchFilePattern findFirstIn _.getName isDefined).foreach {entry =>
+        val source = Source.fromInputStream(zipFile.getInputStream(entry))
+        val xmlStr = source.mkString
+        source.close()
+        println(xmlStr)
+        //TODO:   parse XMLs
+        //TODO:   loop through itemUpdates
+        //TODO:     store them in the app
+      }
+      zipFile.close()
+    }
   }
 
   def generateBatches() = {
