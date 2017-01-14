@@ -38,10 +38,13 @@ class ItemUpdateService extends DatabaseProvider {
    * @return
    */
   def getLastForItemId(itemId: Long): Future[Option[ItemUpdate]] = {
-    for {
-      itemUpdateByItemIdList <- database.itemUpdatesByItemIdsModel.getByItemId(itemId)
-      maybeItemUpdate <- database.itemUpdatesModel.getById(itemUpdateByItemIdList.head.id)
-    } yield maybeItemUpdate
+    database.itemUpdatesByItemIdsModel.getByItemId(itemId).flatMap((a) =>
+      if (a.nonEmpty) {
+        database.itemUpdatesModel.getById(a.head.id)
+      } else {
+        Future.successful(None)
+      }
+    )
   }
 
   /**

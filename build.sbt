@@ -1,10 +1,3 @@
-lazy val root = (project in file("."))
-  .settings(
-    name := """xmlarchiveparser-testtask"""
-  ).aggregate(
-    model
-  )
-
 val commonSettings = Seq(
   organization := "otokarev@gmail.com",
   version := "0.1.0",
@@ -26,3 +19,11 @@ lazy val model = (project in file("model"))
     Defaults.coreDefaultSettings ++ commonSettings ++ PhantomSbtPlugin.projectSettings
   )
 
+lazy val root = (project in file("."))
+  .settings(
+    name := """xmlarchiveparser-testtask"""
+  ).aggregate(model)
+
+
+fork in run := true
+fork in Test := false

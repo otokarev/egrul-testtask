@@ -8,7 +8,7 @@ import com.websudos.util.testing._
 import org.joda.time.{DateTime, DateTimeZone}
 import xap.entity.{BatchWithItemUpdates, Item, ItemUpdate}
 import xap.service.{BatchWithItemUpdatesService, ItemService, ItemUpdateService}
-import xap.test.utils.{CassandraSpec, WithGuiceInjectorAndImplicites}
+import xap.test.utils.{CassandraSpec, ModuleForTest3rdPartyEmulation, WithGuiceInjectorAndImplicites}
 import xap.util.LoremIpsum
 
 import scala.collection.mutable.ListBuffer
@@ -26,16 +26,18 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
   private val ItemService = injector.getInstance(classOf[ItemService])
   private val BatchWithItemUpdatesService = injector.getInstance(classOf[BatchWithItemUpdatesService])
 
-  private val archiveDir = ConfigFactory.load().getString("xmlarchiveparser.dir")
+  private val archiveDir = System.getProperty("user.dir") + '/' + ConfigFactory.load().getString("xmlarchiveparser.dir")
   private val archiveFilePattern = """batch_archive_daily-.*\.zip""".r
   private val batchFilePattern = """batch-.*\.XML""".r
 
   override def beforeAll(): Unit = {
     Await.result(database.autocreate().future(), 5 seconds)
+    ThirdPartyServerContextEmulation.beforeAll()
   }
 
   override def afterAll(): Unit = {
     Await.result(database.autotruncate().future(), 10 seconds)
+    ThirdPartyServerContextEmulation.afterAll()
   }
 
   implicit object ItemGenerator extends Sample[Item] {
@@ -53,9 +55,9 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
   private val itemIds = ListBuffer(itemIdRange)
   private val rnd = new Random()
   private val txnPerDay = 5 to 15
-  private val daysNum = 100
-  private val loremIpsumWordsNumRange = 2000 to 3000
-  private val daysPerBatch = 10
+  private val daysNum = 10
+  private val loremIpsumWordsNumRange = 200 to 300
+  private val daysPerBatch = 2 // keep it > 1
 
   private val startDateTime = DateTime.now(DateTimeZone.UTC).withTime(0, 0, 0, 0)
 
@@ -73,43 +75,34 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
 
     // clean the directory from old batch archives
     new File(archiveDir).listFiles()
-      .filter(_.isFile).toList.filter(archiveFilePattern findFirstIn _.getName isDefined).foreach(_.delete())
+      .toList.filter(archiveFilePattern findFirstIn _.getName isDefined).foreach(_.delete())
 
+    val batchListProcessor = (l: (List[BatchWithItemUpdates], DateTime)) => {
+      val zipFile = new FileOutputStream(archiveDir + "/batch_archive_daily-" + l._2.toString("YYYY-MM-dd") + ".zip")
 
-    val r = (0 until daysNum).toList.grouped(daysPerBatch).toList
-      .map { list => (startDateTime.plusDays(list.head), startDateTime.plusDays(list.last).withTime(23, 59, 59, 999)) }
-      .map { a =>
-        BatchWithItemUpdatesService.getByDateTimeRange((a._1, a._2)).map(b => (b, a._2))
-      }
+      val zip = new ZipOutputStream(zipFile)
 
-    Future.sequence(r).map { r: List[(List[BatchWithItemUpdates], DateTime)] =>
-      r.foreach { l =>
-        val zipFile = archiveDir + "/batch_archive_daily-" + l._2.toString("YYYY-MM-dd") + ".zip"
+      l._1.foreach { b =>
+        val xmlFile = "batch-" + b.createdAt.toString("YYYY-MM-dd") + ".XML"
+        zip.putNextEntry(new ZipEntry(xmlFile))
 
-        val zip = new ZipOutputStream(new FileOutputStream(zipFile))
-
-        l._1.foreach { b =>
-          val xmlFile = "batch-" + b.createdAt.toString("YYYY-MM-dd") + ".XML"
-          zip.putNextEntry(new ZipEntry(xmlFile))
-
-          val xml = <batch id={b.id.toString} createdAt={b.createdAt.toString()}>
-            {b.itemUpdates.map { i =>
-              <item id={i.itemId.toString} createdAt={i.createdAt.toString()} modifiedAt={i.modifiedAt.toString()}>
+        val xml = <batch id={ b.id.toString } createdAt={ b.createdAt.toString() }>
+            { b.itemUpdates.map { i => <item id={ i.itemId.toString } createdAt={ i.createdAt.toString() } modifiedAt={ i.modifiedAt.toString() }>
                 <payload>
-                  {i.payload.toString}
+                  { i.payload.toString }
                 </payload>
-              </item>
-            }}
+              </item> } }
           </batch>
 
-          zip.write(xml.toString().getBytes)
-          zip.closeEntry()
-        }
-
-        zip.close()
+        zip.write(xml.toString().getBytes)
+        zip.closeEntry()
       }
+
+      zip.close()
+      zipFile.close()
     }
 
+    traverseBatches(batchListProcessor)
   }
 
   "ZIP-archives" should "be read, parsed and loaded" in {
@@ -121,37 +114,75 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
     val archiveFiles = new File(archiveDir).listFiles()
       .filter(_.isFile).toList.filter(archiveFilePattern findFirstIn _.getName isDefined).map(_.getName)
 
-    archiveFiles.foreach {file =>
-      val path = archiveDir+"/"+file
-      val zipFile = Try {new ZipFile(path)} match {
+    archiveFiles.foreach { file =>
+      val path = archiveDir + "/" + file
+      val zipFile = Try { new ZipFile(path) } match {
         case Success(a) => a
         case Failure(e) => throw new Exception(s"Cannot open file: `$path`")
       }
-      zipFile.entries.toList.filter(batchFilePattern findFirstIn _.getName isDefined).foreach {entry =>
+      zipFile.entries.toList.filter(batchFilePattern findFirstIn _.getName isDefined).foreach { entry =>
         val source = Source.fromInputStream(zipFile.getInputStream(entry))
-        // TODO: where is splitting in entrieis???
         val xmlStr = source.mkString
         source.close()
         val elem = XML.loadString(xmlStr)
-        println(xmlStr)
 
         val batchId = UUID.fromString((elem \@ "id").toString)
 
-        (elem \ "item") foreach {item =>
-          ItemUpdate(
+        (elem \ "item") foreach { item =>
+          Await.result(ThirdPartyServerContextEmulation.getItemUpdateService.saveOrUpdate(ItemUpdate(
             UUIDs.timeBased(),
             (item \@ "id").toLong,
             Some(batchId),
             DateTime.parse((item \@ "createdAt").toString),
             DateTime.parse((item \@ "modifiedAt").toString),
             (item \ "payload").toString()
-          )
+          )), 1 seconds)
         }
-
-        //TODO:     store them in the app
       }
       zipFile.close()
     }
+  }
+
+  "Object stored in source DB and target" should "be the same" in {
+    //TODO: Check that 3rd party data are stored in different DB
+    //TODO: Amount of UpdateItems must be the same
+    traverseBatches((l) => {
+      l._1.foreach(b => {
+        b.itemUpdates.foreach(item => {
+          val items = Await.result(ThirdPartyServerContextEmulation.getItemUpdateService.getByItemId(item.itemId), 1 seconds)
+
+          items.count(_.modifiedAt == item.modifiedAt) shouldBe 1
+        })
+      })
+    })
+
+    val hii = itemIdRange.map({itemId => (
+        Await.result(ItemUpdateService.getLastForItemId(itemId), 1 seconds),
+        Await.result(ThirdPartyServerContextEmulation.getItemUpdateService.getLastForItemId(itemId), 1 seconds)
+    )}).foreach(a => {
+      ((a._1.isDefined && a._2.isDefined) || (a._1.isEmpty && a._2.isEmpty)) shouldBe true
+
+      if (a._1.isDefined) {
+        //println(a._1.get.modifiedAt +"<>"+ a._2.get.modifiedAt)
+        //println(a._1.get)
+        //println(a._2.get)
+        //TODO: fix this test
+        (a._1.get.modifiedAt == a._2.get.modifiedAt) shouldBe true
+      }
+
+    })
+
+
+  }
+
+  def traverseBatches(f: ((List[BatchWithItemUpdates], DateTime)) => Unit): Unit = {
+    val r = (0 until daysNum).toList.grouped(daysPerBatch).toList
+      .map { list => (startDateTime.plusDays(list.head), startDateTime.plusDays(list.last).withTime(23, 59, 59, 999)) }
+      .map { a =>
+        BatchWithItemUpdatesService.getByDateTimeRange((a._1, a._2)).map(b => (b, a._2))
+      }
+
+    Await.result(Future.sequence(r).map { r: List[(List[BatchWithItemUpdates], DateTime)] => r.foreach(f(_)) }, 10 seconds)
   }
 
   def generateBatches(): Unit = {
@@ -177,14 +208,46 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
       .map { i => (startDateTime.plusDays(i), startDateTime.plusDays(i).withTime(23, 59, 59, 999)) }
       // Loop periods
       .foreach { r =>
-      // Loop transactions per period
-      (1 to {
-        txnPerDay.start + rnd.nextInt(txnPerDay.length)
-      }).foreach { a =>
-        val dateTime = r._1.plusMillis(rnd.nextInt((r._2.getMillis - r._1.getMillis).toInt))
-        val item = Item(rnd.nextInt(itemIdRange.last), dateTime, LoremIpsum.getRandomNumberOfWords(loremIpsumWordsNumRange))
-        Await.ready(ItemService.saveOrUpdate(item), 1 second)
+        // Loop transactions per period
+        (1 to {
+          txnPerDay.start + rnd.nextInt(txnPerDay.length)
+        }).foreach { a =>
+          val dateTime = r._1.plusMillis(rnd.nextInt((r._2.getMillis - r._1.getMillis).toInt))
+          val item = Item(rnd.nextInt(itemIdRange.last), dateTime, LoremIpsum.getRandomNumberOfWords(loremIpsumWordsNumRange))
+          Await.ready(ItemService.saveOrUpdate(item), 1 second)
+        }
       }
-    }
+  }
+}
+
+object ThirdPartyServerContextEmulation {
+
+  import akka.actor.ActorSystem
+  import akka.stream.ActorMaterializer
+  import com.datastax.driver.core.Session
+  import com.google.inject.{Guice, Injector}
+  import com.websudos.phantom.connectors.KeySpace
+  import com.websudos.phantom.dsl.KeySpaceDef
+  import xap.database.ModelsDatabase
+
+  val injector: Injector = Guice.createInjector(new ModuleForTest3rdPartyEmulation)
+  val database: ModelsDatabase = injector.getInstance(classOf[ModelsDatabase])
+  val connector: KeySpaceDef = injector.getInstance(classOf[KeySpaceDef])
+  implicit val keySpace = KeySpace(connector.name)
+  implicit val session: Session = connector.session
+
+  implicit val system = ActorSystem("QuickStart")
+  implicit val materializer = ActorMaterializer()
+
+  def getItemUpdateService: ItemUpdateService = injector.getInstance(classOf[ItemUpdateService])
+  def getItemService: ItemService = injector.getInstance(classOf[ItemService])
+  def getBatchWithItemUpdatesService: BatchWithItemUpdatesService = injector.getInstance(classOf[BatchWithItemUpdatesService])
+
+  def beforeAll(): Unit = {
+    Await.result(database.autocreate().future(), 5 seconds)
+  }
+
+  def afterAll(): Unit = {
+    Await.result(database.autotruncate().future(), 10 seconds)
   }
 }
