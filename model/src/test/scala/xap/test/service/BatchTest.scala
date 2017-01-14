@@ -1,10 +1,12 @@
 package xap.test.service
 
+import java.util.UUID
+
 import com.datastax.driver.core.utils.UUIDs
 import com.typesafe.config.ConfigFactory
 import com.websudos.util.testing._
 import org.joda.time.{DateTime, DateTimeZone}
-import xap.entity.{BatchWithItemUpdates, Item}
+import xap.entity.{BatchWithItemUpdates, Item, ItemUpdate}
 import xap.service.{BatchWithItemUpdatesService, ItemService, ItemUpdateService}
 import xap.test.utils.{CassandraSpec, WithGuiceInjectorAndImplicites}
 import xap.util.LoremIpsum
@@ -16,16 +18,17 @@ import scala.concurrent.{Await, Future}
 import scala.io.Source
 import scala.language.postfixOps
 import scala.util.{Failure, Random, Success, Try}
+import scala.xml.XML
 
 class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
 
-  val ItemUpdateService = injector.getInstance(classOf[ItemUpdateService])
-  val ItemService = injector.getInstance(classOf[ItemService])
-  val BatchWithItemUpdatesService = injector.getInstance(classOf[BatchWithItemUpdatesService])
+  private val ItemUpdateService = injector.getInstance(classOf[ItemUpdateService])
+  private val ItemService = injector.getInstance(classOf[ItemService])
+  private val BatchWithItemUpdatesService = injector.getInstance(classOf[BatchWithItemUpdatesService])
 
-  val archiveDir = ConfigFactory.load().getString("xmlarchiveparser.dir")
-  val archiveFilePattern = """batch_archive_daily-.*\.zip""".r
-  val batchFilePattern = """batch-.*\.XML""".r
+  private val archiveDir = ConfigFactory.load().getString("xmlarchiveparser.dir")
+  private val archiveFilePattern = """batch_archive_daily-.*\.zip""".r
+  private val batchFilePattern = """batch-.*\.XML""".r
 
   override def beforeAll(): Unit = {
     Await.result(database.autocreate().future(), 5 seconds)
@@ -45,16 +48,16 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
     }
   }
 
-  val itemIdRange = 1 to 10
+  private val itemIdRange = 1 to 10
 
-  val itemIds = ListBuffer(itemIdRange)
-  val rnd = new Random()
-  val txnPerDay = 5 to 15
-  val daysNum = 100
-  val loremIpsumWordsNumRange = 2000 to 3000
-  val daysPerBatch = 10
+  private val itemIds = ListBuffer(itemIdRange)
+  private val rnd = new Random()
+  private val txnPerDay = 5 to 15
+  private val daysNum = 100
+  private val loremIpsumWordsNumRange = 2000 to 3000
+  private val daysPerBatch = 10
 
-  val startDateTime = DateTime.now(DateTimeZone.UTC).withTime(0, 0, 0, 0)
+  private val startDateTime = DateTime.now(DateTimeZone.UTC).withTime(0, 0, 0, 0)
 
   "Test items" should "be inserted into C*" in {
     generateTestItems()
@@ -65,8 +68,13 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
   }
 
   "Batches ZIP-archives" should "be generated" in {
-    import java.io.FileOutputStream
+    import java.io.{FileOutputStream, _}
     import java.util.zip.{ZipEntry, ZipOutputStream}
+
+    // clean the directory from old batch archives
+    new File(archiveDir).listFiles()
+      .filter(_.isFile).toList.filter(archiveFilePattern findFirstIn _.getName isDefined).foreach(_.delete())
+
 
     val r = (0 until daysNum).toList.grouped(daysPerBatch).toList
       .map { list => (startDateTime.plusDays(list.head), startDateTime.plusDays(list.last).withTime(23, 59, 59, 999)) }
@@ -86,7 +94,7 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
 
           val xml = <batch id={b.id.toString} createdAt={b.createdAt.toString()}>
             {b.itemUpdates.map { i =>
-              <item id={i.id.toString} createdAt={i.createdAt.toString()} modifiedAt={i.modifiedAt.toString()}>
+              <item id={i.itemId.toString} createdAt={i.createdAt.toString()} modifiedAt={i.modifiedAt.toString()}>
                 <payload>
                   {i.payload.toString}
                 </payload>
@@ -121,18 +129,32 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
       }
       zipFile.entries.toList.filter(batchFilePattern findFirstIn _.getName isDefined).foreach {entry =>
         val source = Source.fromInputStream(zipFile.getInputStream(entry))
+        // TODO: where is splitting in entrieis???
         val xmlStr = source.mkString
         source.close()
+        val elem = XML.loadString(xmlStr)
         println(xmlStr)
-        //TODO:   parse XMLs
-        //TODO:   loop through itemUpdates
+
+        val batchId = UUID.fromString((elem \@ "id").toString)
+
+        (elem \ "item") foreach {item =>
+          ItemUpdate(
+            UUIDs.timeBased(),
+            (item \@ "id").toLong,
+            Some(batchId),
+            DateTime.parse((item \@ "createdAt").toString),
+            DateTime.parse((item \@ "modifiedAt").toString),
+            (item \ "payload").toString()
+          )
+        }
+
         //TODO:     store them in the app
       }
       zipFile.close()
     }
   }
 
-  def generateBatches() = {
+  def generateBatches(): Unit = {
 
     // Loop 9 time periods
     val result = (0 until daysNum).toList
@@ -147,7 +169,7 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
       }
   }
 
-  def generateTestItems() = {
+  def generateTestItems(): Unit = {
 
     // Loop 9 time periods
     (0 until daysNum).toList
