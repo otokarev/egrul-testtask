@@ -35,7 +35,7 @@ abstract class ConcreteBatchesModel extends BatchesModel with RootConnector {
   def getByDateTimeRange(range: (DateTime, DateTime)): Future[List[Batch]] = {
     select
       .where(_.createdAt gt range._1)
-      .and(_.createdAt lt range._2)
+      .and(_.createdAt lte range._2)
       .allowFiltering()
       .consistencyLevel_=(ConsistencyLevel.ONE)
       .fetch()

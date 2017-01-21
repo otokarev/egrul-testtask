@@ -50,19 +50,20 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
     }
   }
 
-  private val itemIdRange = 1 to 10
+  private val itemIdRange = 1 to 100
 
   private val itemIds = ListBuffer(itemIdRange)
   private val rnd = new Random()
-  private val txnPerDay = 5 to 15
-  private val daysNum = 10
-  private val loremIpsumWordsNumRange = 200 to 300
-  private val daysPerBatch = 2 // keep it > 1
+  private val txnPerDay = 10 to 30
+  private val daysNum = 20
+  private val loremIpsumWordsNumRange = 2000 to 3000
+  private val daysPerBatch = 5 // keep it > 1
 
   private val startDateTime = DateTime.now(DateTimeZone.UTC).withTime(0, 0, 0, 0)
 
   "Test items" should "be inserted into C*" in {
-    generateTestItems()
+    val count = generateTestItems()
+    println(s"Stored Updates: $count")
   }
 
   "Batches" should "be created into C*" in {
@@ -72,6 +73,8 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
   "Batches ZIP-archives" should "be generated" in {
     import java.io.{FileOutputStream, _}
     import java.util.zip.{ZipEntry, ZipOutputStream}
+
+    var count = 0
 
     // clean the directory from old batch archives
     new File(archiveDir).listFiles()
@@ -87,11 +90,12 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
         zip.putNextEntry(new ZipEntry(xmlFile))
 
         val xml = <batch id={ b.id.toString } createdAt={ b.createdAt.toString() }>
-            { b.itemUpdates.map { i => <item id={ i.itemId.toString } createdAt={ i.createdAt.toString() } modifiedAt={ i.modifiedAt.toString() }>
-                <payload>
-                  { i.payload.toString }
-                </payload>
-              </item> } }
+            { b.itemUpdates.map { i =>
+              count += 1
+              <item id={ i.itemId.toString } createdAt={ i.createdAt.toString() } modifiedAt={ i.modifiedAt.toString() }>
+                <payload>{ i.payload.toString }</payload>
+              </item>
+            } }
           </batch>
 
         zip.write(xml.toString().getBytes)
@@ -103,6 +107,8 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
     }
 
     traverseBatches(batchListProcessor)
+
+    println(s"Zipped Updates: $count")
   }
 
   "ZIP-archives" should "be read, parsed and loaded" in {
@@ -135,7 +141,7 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
             Some(batchId),
             DateTime.parse((item \@ "createdAt").toString),
             DateTime.parse((item \@ "modifiedAt").toString),
-            (item \ "payload").toString()
+            (item \ "payload").text
           )), 1 seconds)
         }
       }
@@ -144,7 +150,6 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
   }
 
   "Object stored in source DB and target" should "be the same" in {
-    //TODO: Check that 3rd party data are stored in different DB
     //TODO: Amount of UpdateItems must be the same
     traverseBatches((l) => {
       l._1.foreach(b => {
@@ -156,18 +161,17 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
       })
     })
 
-    val hii = itemIdRange.map({itemId => (
+    itemIdRange.map({itemId => (
         Await.result(ItemUpdateService.getLastForItemId(itemId), 1 seconds),
         Await.result(ThirdPartyServerContextEmulation.getItemUpdateService.getLastForItemId(itemId), 1 seconds)
     )}).foreach(a => {
       ((a._1.isDefined && a._2.isDefined) || (a._1.isEmpty && a._2.isEmpty)) shouldBe true
 
       if (a._1.isDefined) {
-        //println(a._1.get.modifiedAt +"<>"+ a._2.get.modifiedAt)
-        //println(a._1.get)
-        //println(a._2.get)
-        //TODO: fix this test
-        (a._1.get.modifiedAt == a._2.get.modifiedAt) shouldBe true
+        val uid = gen[UUID]
+        // Compare the same item stored on two different spots.
+        //   reset id to the same value, it differs on different spots
+        (a._1.get.copy(id=uid) == a._2.get.copy(id=uid)) shouldBe true
       }
 
     })
@@ -177,31 +181,35 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
 
   def traverseBatches(f: ((List[BatchWithItemUpdates], DateTime)) => Unit): Unit = {
     val r = (0 until daysNum).toList.grouped(daysPerBatch).toList
-      .map { list => (startDateTime.plusDays(list.head), startDateTime.plusDays(list.last).withTime(23, 59, 59, 999)) }
+      .map { list =>
+        (startDateTime.plusDays(list.head), startDateTime.plusDays(list.last).withTime(23, 59, 59, 999))
+      }
       .map { a =>
         BatchWithItemUpdatesService.getByDateTimeRange((a._1, a._2)).map(b => (b, a._2))
       }
 
-    Await.result(Future.sequence(r).map { r: List[(List[BatchWithItemUpdates], DateTime)] => r.foreach(f(_)) }, 10 seconds)
+    Await.result(Future.sequence(r).map { r: List[(List[BatchWithItemUpdates], DateTime)] => r.foreach(f(_)) }, 100 seconds)
   }
 
   def generateBatches(): Unit = {
 
     // Loop 9 time periods
-    val result = (0 until daysNum).toList
+    val result = (0 until daysNum).grouped(daysPerBatch).toList
       // Calculate ranges for every time period
-      .map { i => (startDateTime.plusDays(i), startDateTime.plusDays(i).withTime(23, 59, 59, 999)) }
+      .map { list =>
+        (startDateTime.plusDays(list.head), startDateTime.plusDays(list.last).withTime(23, 59, 59, 999))
+      }
       // Loop periods
       .foreach { r =>
-        Await.ready(for {
+        Await.result(for {
           itemUpdates <- ItemUpdateService.getByDateTimeRange(r)
           batchWithItemUpdatesRs <- BatchWithItemUpdatesService.saveOrUpdate(BatchWithItemUpdates(UUIDs.timeBased(), r._2, itemUpdates))
-        } yield batchWithItemUpdatesRs, 10 second)
+        } yield batchWithItemUpdatesRs, 100 second)
       }
   }
 
-  def generateTestItems(): Unit = {
-
+  def generateTestItems(): Int = {
+    var count = 0
     // Loop 9 time periods
     (0 until daysNum).toList
       // Calculate ranges for every time period
@@ -215,8 +223,11 @@ class BatchTest extends CassandraSpec with WithGuiceInjectorAndImplicites {
           val dateTime = r._1.plusMillis(rnd.nextInt((r._2.getMillis - r._1.getMillis).toInt))
           val item = Item(rnd.nextInt(itemIdRange.last), dateTime, LoremIpsum.getRandomNumberOfWords(loremIpsumWordsNumRange))
           Await.ready(ItemService.saveOrUpdate(item), 1 second)
+          count += 1
         }
       }
+
+    count
   }
 }
 

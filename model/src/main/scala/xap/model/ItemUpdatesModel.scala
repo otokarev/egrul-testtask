@@ -79,8 +79,8 @@ class ItemUpdatesByItemIdModel extends CassandraTable[ConcreteItemUpdatesByItemI
   override def tableName: String = "itemUpdates_by_item_id"
 
   object itemId extends LongColumn(this) with PartitionKey[Long]
-  object id extends TimeUUIDColumn(this) with ClusteringOrder[UUID] with Descending
   object createdAt extends DateTimeColumn(this) with ClusteringOrder[DateTime] with Descending
+  object id extends TimeUUIDColumn(this) with ClusteringOrder[UUID]
 
   override def fromRow(r: Row) = ItemUpdateByItemId(id(r), itemId(r), createdAt(r))
 }
